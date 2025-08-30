@@ -1,4 +1,4 @@
-# 📦🚚 **README — Module 03: Data Replication & Migration (Google Cloud)**
+# 📦🚚 **README — Module 03: Data Replication & Migration **
 
 
 **Goal:** Choose the **right tool** to bring data into GCP and understand how **CDC** and **bulk transfers** work end-to-end.
