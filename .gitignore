@@ -42,4 +42,4 @@ out/
 # ------------------------
 .DS_Store
 Thumbs.db
-.metals
+.metals/
