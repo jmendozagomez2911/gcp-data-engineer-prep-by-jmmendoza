@@ -80,14 +80,6 @@ Typical responsibilities:
 
 ## 4) 🗄️ Storage & Databases on Google Cloud (selection guide)
 
-Ahh, now I see what you want 👌 — keep the **table concise**, and then add a **section right after** explaining **vertical vs horizontal scaling** + exam tips (instead of cramming it inside the table).
-
-Here’s the revised version:
-
----
-
-## 4) 🗄️ Storage & Databases on Google Cloud (selection guide)
-
 | Service                 | Type & When to Use                                                                                                                            | Highlights                                                                                                                                                                    |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Cloud Storage (GCS)** | Object store for **unstructured & semi-structured** data; data lake landing zone; archives; static website hosting (accessed by HTTP request) | Stores any binary object up to **5 TB**; strong consistency; range GET; lifecycle mgmt; **storage classes**: Standard / Nearline (≥30d) / Coldline (≥90d) / Archive (≥365d)   |

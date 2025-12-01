@@ -79,71 +79,98 @@
 
 ---
 
-## 4) 🧰 Dataform (serverless ELT for SQL workflows)
+## 4) 🧰 **Dataform (Serverless ELT for SQL Workflows)**
 
-**What it is:** A **serverless framework** that runs inside the BigQuery experience to develop, test, document, and **orchestrate** SQL ELT pipelines.
+**What it is:**
+A **serverless framework** embedded in the **BigQuery environment** that allows you to develop, test, document, and **orchestrate SQL-based ELT pipelines**.
 
-**Why use it**
+---
 
-* One place for **definitions, dependencies, tests (assertions)**, docs, and **automation**.
-* Eliminates glue code across multiple tools; reduces human error.
+### **Why use it**
 
-**How it runs with BigQuery**
+* Centralises **definitions, dependencies, tests (assertions)**, documentation, and **automation** in one place.
+* Eliminates the need for **glue code** (for example, code connecting an API to a database) across multiple tools, thereby reducing human error.
 
-1. You write **SQLX/JS**.
-2. Dataform does **real-time compilation**, dependency checks, error surfacing.
-3. Compiled SQL executes **in BigQuery** (on-demand or on a schedule).
+---
 
-**Repository & workspace**
+### **How it runs with BigQuery**
 
-* **Workspaces** with default folders/files.
+1. You write transformations in **SQLX** or **JavaScript**.
+2. Dataform performs **real-time compilation**, dependency validation, and error surfacing.
+3. The compiled SQL runs **directly in BigQuery**, either **on demand** or **on a schedule**.
+
+💡 **Clarification:**
+When we say that *execution happens inside BigQuery*, it means Dataform doesn’t have its own compute engine. Instead, it **sends your queries to BigQuery’s engine** for execution — just as if you had written and run the SQL manually in the BigQuery console.
+Dataform simply **manages the order, scheduling, and testing**, while **BigQuery does the actual processing**.
+In other words:
+
+> **Dataform organises and controls the logic; BigQuery executes it.**
+
+---
+
+### **Repository and workspace structure**
+
+* **Workspaces** come with default folders and files.
 * Key folders:
 
-    * `definitions/` → **.sqlx** (tables/views/incrementals/declarations).
-    * `includes/` → **JavaScript** helpers.
+  * `definitions/` → `.sqlx` files for **tables, views, incrementals, and declarations**.
+  * `includes/` → **JavaScript** helper functions.
 * Other files: `.gitignore`, `package.json`, `package-lock.json`, `workflow_settings.yaml`, `README.md`.
 
-**SQLX file anatomy**
+---
+
+### **SQLX file structure**
 
 ```text
-config { ... }          # metadata, materialization, tests
-js { ... }              # reusable JS helpers (optional)
-pre_operations { ... }  # SQL before main body (optional)
+config { ... }          # Metadata, materialisation, tests
+js { ... }              # Reusable JS helpers (optional)
+pre_operations { ... }  # SQL to run before main body (optional)
 -- main SQL body here --
-post_operations { ... } # SQL after main body (optional)
+post_operations { ... } # SQL to run after main body (optional)
 ```
 
-* Replace repetitive CASE logic with helper calls, e.g. `$(mapping.region("country"))`.
+Use helper calls to replace repetitive logic, e.g. `$(mapping.region("country"))`.
 
-**Materialization types**
+---
 
-* `declaration` → reference an existing BQ table.
-* `table` → create/replace from a `SELECT`.
-* `incremental` → create then **append/update** with new data.
-* `view` → create/replace a view (optionally materialized).
+### **Materialisation types**
 
-**Quality & custom steps**
+* `declaration` → References an existing BigQuery table.
+* `table` → Creates or replaces a table from a `SELECT`.
+* `incremental` → Creates, then **appends or updates** with new data.
+* `view` → Creates or replaces a view (optionally materialised).
 
-* **Assertions** (SQL or JS) for **data quality**.
-* **Operations** to run custom SQL **before/after/during** pipelines.
+---
 
-**Dependencies**
+### **Quality and custom steps**
 
-* **Implicit**: use `ref("node_name")` inside SQL.
-* **Explicit**: list in `config { dependencies: [...] }`.
-* **resolve()**: reference without creating a dependency.
+* **Assertions** (SQL or JS) for enforcing **data quality**.
+* **Operations** to execute custom SQL **before, after, or during** pipeline runs.
 
-**Orchestration & graph**
+---
 
-* Visualize as a **DAG** (e.g., `customer_source` → `customer_intermediate` → `customer_rowConsistency` → branches to `customer_ml_training` (operation) **and** `customer_prod_view`).
-* **Triggers**:
+### **Dependencies**
 
-    * **Internal**: run in UI or schedule within Dataform.
-    * **External**: **Cloud Scheduler**, **Cloud Composer**.
-* Execution always **happens in BigQuery**.
+* **Implicit:** use `ref("node_name")` within SQL.
+* **Explicit:** define in `config { dependencies: [...] }`.
+* **resolve():** reference without creating a dependency.
 
-> 💡 **Exam Tip**
-> “Need incremental tables, assertions, and ordered dependencies with retries” → **Dataform**.
+---
+
+### **Orchestration and graph**
+
+* Visualised as a **DAG** — e.g.
+  `customer_source` → `customer_intermediate` → `customer_rowConsistency` → branches to both `customer_ml_training` (operation) **and** `customer_prod_view`.
+* **Triggers:**
+
+  * **Internal:** run manually in the UI or schedule within Dataform.
+  * **External:** use **Cloud Scheduler** or **Cloud Composer**.
+* Execution always takes place **inside BigQuery** (no separate runtime).
+
+---
+
+> 💡 **Exam Tip:**
+> If the question mentions *incremental tables, assertions, and ordered dependencies with retries*, the answer is **Dataform**.
 
 ---
 

@@ -14,7 +14,6 @@ Purpose: **bring data from external/internal systems into Google Cloud** so you 
 
 * On-prem & multi-cloud: **file systems**, **object stores** (S3, Azure Blob), **HDFS**, **relational DBs** (Oracle, MySQL, PostgreSQL, SQL Server), **NoSQL**.
 
-Got it 👍 You want everything blended into **one seamless narrative**, not split answers. Let me rewrite the whole thing so it flows naturally as a single explanation of **how data lands in GCP**, while also covering **Datastream, Dataflow, DMS, and transfers** together.
 
 ---
 
@@ -68,8 +67,6 @@ For broader database moves and complex data pipelines, GCP provides extra tools:
   ```bash
   gcloud storage cp ./path/file.csv gs://my-bucket/
   ```
-
-Perfect 👍 let’s enrich that section with a bit more **context and nuance** so it flows naturally with the rest of the “how data lands in GCP” story. I’ll expand on **when you’d use each tool**, **extra capabilities**, and tie it to exam-style thinking.
 
 ---
 
