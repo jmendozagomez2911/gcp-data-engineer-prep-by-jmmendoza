@@ -43,3 +43,5 @@ out/
 .DS_Store
 Thumbs.db
 .metals/
+.metals\metals.lock.db
+.metals\metals.log
