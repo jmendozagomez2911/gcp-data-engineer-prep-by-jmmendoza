@@ -81,17 +81,19 @@
 
 ## 4) 🧰 **Dataform (Serverless ELT for SQL Workflows)**
 
-**What it is:**
-A **serverless framework** embedded in the **BigQuery environment** that allows you to develop, test, document, and **orchestrate SQL-based ELT pipelines**.
+**What it is:** A **serverless framework** inside BigQuery to build, test, document, and schedule SQL ELT transformations. It manages dependencies between datasets but is not a general data orchestrator like ADF or Composer.
 
 ---
 
-### **Why use it**
+* One place for **definitions, dependencies, tests (assertions)**, docs, and **automation**.
+* Eliminates glue code (small scripts used to connect different tools together) across multiple tools; reduces human error.
 
 * Centralises **definitions, dependencies, tests (assertions)**, documentation, and **automation** in one place.
 * Eliminates the need for **glue code** (for example, code connecting an API to a database) across multiple tools, thereby reducing human error.
 
----
+1. You write **SQLX/JS** (SQL + JS templating).
+2. Dataform does **real-time compilation**, dependency checks, error surfacing.
+3. Compiled SQL executes **in BigQuery** (on-demand or on a schedule).
 
 ### **How it runs with BigQuery**
 
@@ -155,7 +157,11 @@ Use helper calls to replace repetitive logic, e.g. `$(mapping.region("country"))
 * **Explicit:** define in `config { dependencies: [...] }`.
 * **resolve():** reference without creating a dependency.
 
----
+>👉 **In short: Dataform = dbt but native to BigQuery.**
+It turns your SQL transformations into a well-managed, tested, and scheduled pipeline, with automatic DAG building and documentation
+> 
+> 💡 **Exam Tip**
+> “Need incremental tables, assertions, and ordered dependencies with retries” → **Dataform**.
 
 ### **Orchestration and graph**
 

@@ -1,7 +1,7 @@
 # 📘✨ **README — Module 03: The Extract & Load (EL) Data Pipeline Pattern**
 
-**Goal:** Know *how to get data into BigQuery fast* without upfront transforms, and when to use **bq**, **BigQuery Data Transfer Service**, **External Tables**, and **BigLake**.
-**How to use:** Read top-down. Skim **Exam Tips**. Copy the commands & SQL to practise.
+* **Goal:** Know *how to get data into BigQuery fast* without upfront transforms, and when to use **bq**, **BigQuery Data Transfer Service**, **External Tables**, and **BigLake**.
+* **How to use:** Read top-down. Skim **Exam Tips**. Copy the commands & SQL to practise.
 
 ---
 
@@ -106,6 +106,11 @@ Key flags to remember:
 Here’s your enriched section with the **“query in place” vs “query in object stores” nuance** integrated seamlessly so it flows without breaking your structure:
 
 ---
+Perfect — let’s integrate the **diagram seamlessly** into your section so it flows naturally with the explanation of **External Tables vs BigLake**.
+
+Here’s the updated version:
+
+---
 
 ## 7) 🔍 **External Tables** vs 🐳 **BigLake** (non-copy EL)
 
@@ -121,22 +126,49 @@ Here’s your enriched section with the **“query in place” vs “query in ob
 
 ### BigLake (unified lakehouse access)
 
+BigLake is a unified storage engine that simplifies data access for data warehouses and lakes by providing uniform fine-grained access control across multi-cloud storage and open formats.
+
 * Query data **in object stores** (**GCS, AWS S3, Azure Data Lake Storage Gen2**) as if it were a **native BigQuery table** (joins, SQL, federated queries).
 * Difference in scope: **all BigLake queries are “in place”**, but specifically targeted at **object stores** (lakehouse pattern).
-* **Performance optimisations**:
 
-    * Uses **Apache Arrow** for columnar access.
-    * Maintains a **metadata cache** (row counts, min/max values, file stats) → enables **predicate pushdown** and **file pruning**.
-    * **Cache staleness** tunable: **30 min → 7 days**; refresh can be **auto or manual**.
-    * Spark + Presto can also use these cached stats via the **BigLake connectors**.
-* **Security & Governance**:
+**Performance optimisations**:
 
-    * Data access via **service account delegation**, so end-users don’t need bucket-level access.
-    * Supports **row-level** and **column-level security** + policy tags, integrating with **Dataplex** for central governance.
-* **Trade-offs**:
+* Uses **Apache Arrow** for columnar access.
+* Maintains a **metadata cache** (row counts, min/max values, file stats) → enables **predicate pushdown** and **file pruning**.
+* **Cache staleness** tunable: **30 min → 7 days**; refresh can be **auto or manual**.
+* Spark + Presto can also use these cached stats via the **BigLake connectors**.
 
-    * Like External, still **no preview** and **no cost estimation**.
-    * Slightly slower than native BigQuery tables (since data isn’t persisted in BQ storage), but faster than plain External tables due to caching/pruning.
+**Security & Governance**:
+
+* Data access via **service account delegation**, so end-users don’t need bucket-level access.
+* Supports **row-level** and **column-level security** + policy tags, integrating with **Dataplex** for central governance.
+
+**Trade-offs**:
+
+* Like External, still **no preview** and **no cost estimation**.
+* Slightly slower than native BigQuery tables (since data isn’t persisted in BQ storage), but faster than plain External tables due to caching/pruning.
+
+---
+
+### 📊 Storage Hierarchy Context
+
+To place **BigQuery External Tables** and **BigLake** in the bigger picture of Google Cloud storage:
+
+```
+Google Cloud Storage Hierarchy
+│
+├── Cloud Storage (GCS) [Object Store]
+│     └── Buckets → Objects (Parquet, CSV, Images, etc.)
+│
+├── BigQuery (Warehouse)
+│     └── Dataset → Table → Partition/Cluster → Column/Row
+│
+└── BigLake (Lakehouse Layer)
+      └── BigLake Table (points to GCS files or BQ tables)
+```
+
+* 👉 **External Table**: points to GCS (or other sources) directly, but user needs *both* BigQuery + source permissions.
+* 👉 **BigLake Table**: points to GCS objects, but applies **BigQuery-like governance and caching**, without needing raw bucket access.
 
 ---
 
