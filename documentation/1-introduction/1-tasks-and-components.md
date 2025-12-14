@@ -1,321 +1,263 @@
-# 📘✨  Data Engineering Tasks & Components (Google Cloud)
+# 📘✨ Data Engineering Tasks & Components (Google Cloud)
 
-**Goal:** Understand *what* a data engineer does and *which* Google Cloud services to choose at each step of a pipeline.
-**How to use this guide:** Read top-down. Skim the **Exam Tips** boxes. Copy the example commands/SQL when you practise.
+**Goal:** Understand *what* a data engineer does, the **4 pipeline stages**, and **which Google Cloud services** typically fit each stage (with exam-grade mental models).
+
+**How to use this guide:** Read top-down. Focus on the **Exam Tips** and the **Decision Trees**. Practise the CLI/SQL snippets.
 
 ---
 
 ## 1) 🧭 The Data Engineer’s Job (mental model)
 
-A data engineer **designs, builds, and operates data pipelines** so the business can use data in **dashboards, reports, ML models, and apps**.
+A data engineer **builds and operates data pipelines** so data can power **dashboards, reports, ML models, and apps**. The job is not just “moving data”: it’s making data **usable**, **accurate**, and **production-ready**.
 
-Typical responsibilities:
+What that includes:
 
-* **Ingest** data from many sources (batch & streaming).
-* **Transform** it into clean, trustworthy, analytics-ready datasets.
-* **Store/Serve** it in the right system (warehouse, lake, or operational store).
-* **Govern** it (quality, security, lineage, metadata).
-* **Productionise** pipelines (SLA/SLOs, monitoring, cost control).
+* **Make raw data usable** (clean, validate, standardise).
+* **Add value via transformations** (business logic, joins, enrichment).
+* **Data management** (currency/freshness, accuracy, governance).
+* **Production operations** (automation, monitoring, cost control, reliability).
 
-### The four pipeline stages (you’ll see these everywhere)
+### The 4 pipeline stages (course framing)
 
-1. **Replicate & Migrate** – get data *into* Google Cloud from other systems.
-2. **Ingest** – land it so downstream tools can read it (becomes a **data source**).
-3. **Transform** – clean/join/aggregate/enrich for specific use cases.
-4. **Store** – place final, modeled data in a **data sink** for analysis/serving.
-
-> 💡 **Exam Tip**
-> Expect scenario questions like: *“Logs from on-prem apps must be analysed in near-real time.”* Think: **Pub/Sub → Dataflow → BigQuery** for streaming analytics, or **Transfer Service / Storage Transfer → Cloud Storage → BigQuery** for batch.
-
----
-
-## 2) 🔌 Source vs Sink (don’t mix them up)
-
-* **Data Source** = starting point of the journey (raw data).
-  Common GCP sources at ingest:
-
-    * **Cloud Storage** (files of any type; “data lake” landing zone).
-    * **Pub/Sub** (asynchronous messaging / event ingestion).
-
-* **Data Sink** = final resting place for **processed** data (ready to consume).
-  Typical sinks:
-
-    * **BigQuery** (analytics/OLAP warehouse).
-    * **Bigtable** (very low-latency NoSQL for serving/operational analytics).
-
----
-
-
-## 3) 🧩 Data Formats (know where they fit)
-
-* **Unstructured** – binary/text without fixed schema (docs, images, audio, video).
-
-    * Store in **Cloud Storage**.
-    * Use **BigQuery Object Tables** to *reference* (not store) Cloud Storage objects for metadata-driven analytics over unstructured assets.
-
-* **Semi-Structured** – self-describing formats (JSON, Avro, Parquet, ORC).
-
-    * Land in **Cloud Storage** or stream directly via **Pub/Sub → Dataflow → BigQuery**.
-    * **BigQuery natively supports** JSON, Avro, Parquet, ORC.
-    * Nested/repeated fields are handled via **STRUCT** and **ARRAY** types.
-
-* **Structured** – tabular data with a fixed schema (CSV, relational tables).
-
-    * Load into **BigQuery** (data warehouse) or transactional stores like **Cloud SQL / AlloyDB / Spanner**.
-    * Optimised for **OLAP (BigQuery)** vs **OLTP (Cloud SQL/AlloyDB/Spanner)** workloads.
-
----
-
-👉 This way the distinction is crystal clear:
-
-* **BigQuery = structured + semi-structured** (native support).
-* **Unstructured = Cloud Storage** (with optional BigQuery Object Tables to analyse metadata).
-
+1. **Replicate & Migrate** – bring data into Google Cloud from internal/external systems.
+2. **Ingest** – land data so it becomes a **data source** for downstream tools.
+3. **Transform** – modify/join/aggregate to match downstream analytics requirements.
+4. **Store** – deposit final, ready-to-consume data in a **data sink**.
 
 > 💡 **Exam Tip**
-> CSV is simple but not optimal at scale (no types, bigger size). **Parquet/ORC** → faster loads, lower query cost in BigQuery.
+> “Where does the data become available downstream?” → **Ingest stage**.
+> “Where is the final, analytics-ready data stored?” → **Store stage** (sink).
 
 ---
 
+## 2) 🔌 Data Source vs Data Sink (don’t mix them up)
+
+* **Data Source** = the *starting point* (raw or newly landed data that downstream tools will read).
+
+  * Common GCP “ingest-phase” sources:
+
+    * **Cloud Storage** (landing zone / data lake for files)
+    * **Pub/Sub** (asynchronous messaging for event ingestion)
+
+* **Data Sink** = the *final stop* where **processed** data lives for analysis & decision-making.
+
+  * Typical sinks:
+
+    * **BigQuery** (serverless analytics warehouse)
+    * **Bigtable** (low-latency NoSQL for operational/serving use cases)
+
+> 💡 **Exam Tip**
+> If they describe “final stop / reservoir at the end of the river” → they mean **sink**.
+
+---
+
+## 3) 🧩 Data Formats (what goes where)
+
+### A) **Unstructured**
+
+Docs, images, audio, video — non-tabular bytes.
+
+* Best home: **Cloud Storage**
+* BigQuery angle:
+
+  * **BigQuery Object Tables** can represent/track objects (metadata + referencing), useful for analytics around assets.
+
+### B) **Semi-structured**
+
+JSON, Avro, Parquet, ORC.
+
+* Land in **Cloud Storage** or load into **BigQuery**
+* BigQuery supports nested structures via **STRUCT** and **ARRAY**
+* Efficient formats:
+
+  * **Parquet/ORC** → columnar, efficient scanning/cost
+  * Avro also common for loads (schema embedded)
+
+### C) **Structured**
+
+CSV, relational tables.
+
+* Analytics: **BigQuery**
+* Transactional: **Cloud SQL / AlloyDB / Spanner** (OLTP-style)
+
+> 💡 **Exam Tip**
+> CSV is simple, but at scale it’s usually worse than columnar formats (types + size + scan cost). Prefer **Parquet/ORC** when possible.
+
+---
 
 ## 4) 🗄️ Storage & Databases on Google Cloud (selection guide)
 
-| Service                 | Type & When to Use                                                                                                                            | Highlights                                                                                                                                                                    |
-| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Cloud Storage (GCS)** | Object store for **unstructured & semi-structured** data; data lake landing zone; archives; static website hosting (accessed by HTTP request) | Stores any binary object up to **5 TB**; strong consistency; range GET; lifecycle mgmt; **storage classes**: Standard / Nearline (≥30d) / Coldline (≥90d) / Archive (≥365d)   |
-| **BigQuery**            | **Serverless, columnar data warehouse** for analytics (OLAP); structured + semi-structured data (JSON, Avro, Parquet, ORC)                    | SQL interface; separates storage/compute; scans TBs in seconds / PBs in minutes; built-in **ML**, **GIS**, **BI Engine**; **Object Tables** reference GCS unstructured assets |
-| **Bigtable**            | **NoSQL wide-column** DB (schema-flexible tables grouped by column families) for petabyte-scale, low-latency operational data                 | Sub-10 ms reads/writes; ideal for **time-series, IoT, personalization, ML feature stores**; design row key carefully; not relational                                          |
-| **Cloud SQL**           | Managed **MySQL / PostgreSQL / SQL Server** for traditional OLTP apps                                                                         | Easy lift-and-shift for legacy apps; **vertical scaling** (scale up VM size); regional only; good for SMB workloads                                                           |
-| **AlloyDB**             | Fully managed **PostgreSQL-compatible** for high-performance OLTP + HTAP                                                                      | Up to **4× faster** than standard Postgres; ML-accelerated analytics; auto-scaling; designed for modern enterprise apps                                                       |
-| **Spanner**             | **Horizontally scalable relational** DB with **global consistency**                                                                           | Only GCP service combining **SQL + ACID transactions + horizontal scale**; global distribution; mission-critical OLTP with very high throughput                               |
-| **Firestore**           | Serverless **NoSQL document** store for app dev                                                                                               | Hierarchical docs/collections; serverless auto-scaling; ACID at document level; great for mobile/web apps needing flexible schemas                                            |
-
-
-## 🔎 Vertical vs Horizontal Scaling in GCP Data Stores
-
-### **Vertical Scaling (scale up a single instance)**
-
-* Add more CPU, RAM, or disk to a single machine.
-* Limited by the biggest VM size in that region/zone.
-* Examples from the table:
-
-  * **Cloud SQL** → MySQL/Postgres/SQL Server; classic vertical scaling.
-  * **AlloyDB** → auto-scaling is smarter, but fundamentally still vertical per instance.
-  * **Firestore** → auto-scales, but under the hood it’s managed in a way you can’t control; you don’t shard it manually.
-  * **BigQuery (compute slots)** → technically scales horizontally under the hood, but *you* don’t manage it (serverless). From an exam POV → treat it as *elastic/automatic scaling*, not “you add nodes.”
+| Service                 | Best for                                                 | Exam highlights                                                                                                                                                     |
+| ----------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Cloud Storage (GCS)** | Un/semi-structured objects; landing zone; data lake      | Objects accessed via **HTTP**; supports **range GET**; object key = name; object size up to **5 TB**; classes **Standard / Nearline / Coldline / Archive**          |
+| **BigQuery**            | Serverless OLAP analytics warehouse                      | Built-in **ML/GIS/BI**; very large scans; access via **Console SQL**, **bq CLI**, **REST API**; table ref `project.dataset.table`; IAM at dataset/table/view/column |
+| **Bigtable**            | Low-latency wide-column NoSQL                            | **Key-value lookup**, sub-10ms latency; time-series/IoT/features/personalisation; row-key design matters                                                            |
+| **Cloud SQL**           | Managed relational (MySQL/Postgres/SQL Server)           | Lift-and-shift OLTP; typically **vertical scaling**                                                                                                                 |
+| **AlloyDB**             | High-performance Postgres-compatible OLTP/HTAP           | “Managed Postgres but faster” positioning; enterprise OLTP choice                                                                                                   |
+| **Spanner**             | Horizontally scalable relational with strong consistency | SQL + ACID + horizontal scale + global consistency                                                                                                                  |
+| **Firestore**           | Serverless NoSQL document DB                             | Auto-scaling; app dev; document/collection model                                                                                                                    |
 
 ---
 
-### **Horizontal Scaling (add more nodes/servers; sharding/distribution)**
+## 5) 🛶 Data Lake vs 🏛️ Data Warehouse (the exam definition)
 
-* Scale out linearly by distributing data + queries across multiple machines.
-* Much harder technically because of **consistency problems**.
-* Examples from the table:
+* **Data Lake (GCS)**
+  Stores **raw** data in **many formats** (un/semi/structured). Flexible for DS, apps, exploration.
 
-  * **Spanner** → the **only relational DB** with horizontal scale (SQL + ACID).
-  * **Bigtable** → wide-column NoSQL, shards data by row key across nodes; classic horizontal scaling.
-  * **Firestore** → serverless NoSQL doc DB that auto-scales horizontally, but you don’t manage nodes.
-  * **BigQuery** → storage and compute scale independently and horizontally, but managed by Google (serverless, not manual).
+* **Data Warehouse (BigQuery)**
+  Stores **processed/structured** and often **aggregated** data for **analytics & reporting**.
 
-
----
-
-## 5) 🛶 Data Lake vs 🏛️ Data Warehouse
-
-* **Data Lake (on GCS)** — raw, multi-format (un/semi/structured), cheap storage, flexible for **data science** and varied use cases.
-* **Data Warehouse (BigQuery)** — curated, modeled data for **analytics & reporting**, fast SQL at scale, governance & performance features.
-
-> 💡 **Modern pattern:** Land raw in **GCS (lake)** → curate and **ELT** into **BigQuery (warehouse)** → serve BI/ML.
+> 💡 **Modern pattern (very testable):**
+> Land raw in **GCS** → transform/curate → load into **BigQuery**.
 
 ---
 
-## 6) 🚀 BigQuery Primer (what you *must* know)
+## 6) 🚀 BigQuery Primer (must-know facts)
 
 ### Core concepts
 
-* **Hierarchy**: `project.dataset.table` (you’ll use this in SQL/CLI/API).
-* **Access**: IAM at **dataset/table/view/column**. Need at least **read** on the object you query.
-* **Table types**: Native tables, **external tables** (read in place from GCS), **views**, **materialized views**, and **object tables**.
-* **Access methods**:Web UI Console SQL editor, **bq** (bigQuery) CLI, REST API (client libs).
+* Naming: `project.dataset.table`
+* Datasets are **scoped to a project**
+* Access control: **IAM** at **dataset/table/view/column**
+* To query a table/view: need **at least read permission**
 
-### Ingestion (what you practised)
+### Access paths
 
-* Console load from CSV with **Auto Detect** schema.
+* Cloud Console SQL editor
+* `bq` CLI (Cloud SDK)
+* REST API + client libraries
 
-* CLI **append** from GCS:
+---
 
-  ```bash
-  bq load \
-    --source_format=CSV \
-    --autodetect \
-    --noreplace \        # append if table exists
-    nyctaxi.2018trips \
-    gs://cloud-training/OCBL013/nyc_tlc_yellow_trips_2018_subset_2.csv
-  ```
+## 7) 🧱 Transformation patterns (recognise in scenarios)
 
-    * Use `--replace` to overwrite instead of append.
+The transcript names these explicitly:
 
-* **Create from query (CTAS)**:
+* **EL** (Extract & Load)
+* **ELT** (Extract, Load, Transform) — common with BigQuery-centric analytics
+* **ETL** (Extract, Transform, Load) — transform before loading (heavy reshaping/compliance)
 
-  ```sql
-  CREATE TABLE nyctaxi.january_trips AS
-  SELECT * FROM nyctaxi.2018trips
-  WHERE EXTRACT(MONTH FROM pickup_datetime) = 1;
-  ```
+> 💡 **Exam Tip**
+> If the question hints “reuse logic for batch and streaming later”, pick **Dataflow/Beam** model later in the course.
+> If it hints “existing Spark jobs, want serverless”, later you’ll use **Dataproc Serverless for Spark**.
 
-### Querying example (top 5 most expensive trips)
+---
+
+## 8) 🗂️ Metadata & Governance with Dataplex
+
+**Dataplex** = discover + manage + govern distributed data across GCS/BigQuery/etc.
+
+Key promises from the transcript:
+
+* Break down **data silos**
+* Centralise **security & governance**
+* Enable **distributed ownership**
+* Improve **search & discovery** by business context
+* Standardise metadata, policies, classification, lifecycle
+
+### Zones (common pattern)
+
+* **Raw zone** → mostly data engineers/scientists
+* **Curated zone** → broader consumption (analysts, BI users)
+
+> 💡 **Exam Tip**
+> “Centrally discover/govern data across lakes + warehouses” → **Dataplex**.
+> Dataplex **does not store** your data; it governs what’s already in GCS/BigQuery/etc.
+
+---
+
+## 9) 🔗 Data Sharing with Analytics Hub
+
+**Analytics Hub** solves “sharing data is hard”, especially **outside** your org.
+
+What it gives (from transcript):
+
+* Publish + subscribe to **analytics-ready datasets**
+* **Share in place** (no copying)
+* Providers can **control and monitor usage**
+* Self-service access to trusted datasets (including Google-provided)
+* Enables **monetisation** without building the monetisation infrastructure
+
+> 💡 **Exam Tip**
+> Keywords: “share externally”, “in place”, “monitor usage”, “data ecosystem”, “monetise” → **Analytics Hub**.
+
+---
+
+## 10) 🧪 Lab recap (BigQuery loading essentials)
+
+What you practised:
+
+1. Create dataset `nyctaxi`
+2. Load local CSV via Console (**Auto Detect**) into `nyctaxi.2018trips`
+3. Query top fares:
 
 ```sql
-SELECT *
-FROM nyctaxi.2018trips
+SELECT * FROM nyctaxi.2018trips
 ORDER BY fare_amount DESC
 LIMIT 5;
 ```
 
-### 📉 Partitioning & Clustering (performance & cost)
+4. Append more data from GCS with CLI (`--noreplace` means append):
 
-* **Partition** by ingestion time or by a DATE/TIMESTAMP/INTEGER range column.
+```bash
+bq load \
+  --source_format=CSV \
+  --autodetect \
+  --noreplace \
+  nyctaxi.2018trips \
+  gs://cloud-training/OCBL013/nyc_tlc_yellow_trips_2018_subset_2.csv
+```
 
-    * Always **filter on the partition column** to scan less and pay less.
-* **Cluster** on up to 4 columns to improve predicate filtering and join performance.
+5. Create a derived table with CTAS (DDL) for January:
 
-### 💸 Cost control quick wins
-
-* Preview schemas, **query only needed columns**, **use partition filters**, and cap with `LIMIT` during exploration.
-* Prefer **Parquet/ORC** over CSV for efficient loads/queries.
-
-> 💡 **Exam Tip**
-> If a query is slow/expensive and filters by `event_date`, answer: **partition by date** and **cluster by common filter/join keys**.
-
----
-
-## 7) 🧱 Transformation Patterns (and when to use them)
-
-* **EL (Extract & Load)** – move raw into the lake/warehouse; transform later.
-* **ELT (Extract, Load, Transform)** – **load first**, then transform *in BigQuery* with SQL (most common in modern analytics).
-* **ETL (Extract, Transform, Load)** – transform before loading (e.g., compliance, heavy reshaping in **Dataflow/Dataproc**).
-
-> 💡 **Choosing guide:**
->
-> * Heavy SQL-friendly transformations → **ELT in BigQuery**.
-> * Stream processing, windowing, exactly-once → **Dataflow** before load (ETL/ELT hybrid).
-> * Spark/Hadoop skills or existing jobs → **Dataproc**.
+```sql
+CREATE TABLE nyctaxi.january_trips AS
+SELECT *
+FROM nyctaxi.2018trips
+WHERE EXTRACT(MONTH FROM pickup_datetime) = 1;
+```
 
 ---
 
+## 11) 🧠 Quick decision trees (exam speed)
 
-## 8) 🗂️ Metadata, Governance, and Zones with **Dataplex**
+### Choosing ingestion
 
-* **Dataplex** centralises **discovery, governance, security policies, and lifecycle** across lakes & warehouses.
-* ❌ Dataplex does **not store data** → it manages and governs data already in **BigQuery, Cloud Storage, Bigtable**, etc.
----
+* **Files (batch)** → land in **GCS** → load/external in **BigQuery** (or transform first)
+* **Events/streaming** → **Pub/Sub** → processing engine → sink
 
-### 🔹 Typical **lake zones** (with governance applied)
+### Choosing storage
 
-* **Raw (Bronze)** — minimally processed, ingested as-is.
-
-  * **Governance**: strict access controls; usually only data engineers/scientists.
-  * Policies: schema validation, retention rules, sensitivity tags (e.g., PII flagged).
-  * Metadata: catalogued as *raw*, often with limited discoverability.
-
-* **Curated (Silver/Gold)** — cleaned, standardized, modeled for broader use.
-
-  * **Governance**: broader access (analysts, BI users).
-  * Policies: role-based permissions, data quality checks (freshness, completeness), compliance enforcement.
-  * Metadata: enriched, discoverable in the catalog with business-friendly tags.
-
----
-
-### 🔑 Governance capabilities in Dataplex
-
-1. **Access & security** → IAM + fine-grained policies per lake/zone/table/object.
-2. **Policy enforcement** → data retention, sensitivity classification, regulatory compliance.
-3. **Metadata catalog** → unified search & discovery across GCS, BigQuery, etc.
-4. **Data quality & lineage** → enforce rules (e.g., no null IDs), track data origins and transformations.
-
----
-
-> 💡 **Exam Tip**
-> Scenario mentions “break down data silos,” “unified governance,” or “discover data assets across GCS + BigQuery” → **Dataplex**.
-
----
-
-## 9) 🔗 Data Sharing with **Analytics Hub**
-
-* Publish **analytics-ready BigQuery datasets** and let others **subscribe**—**data stays in place** (no copying).
-* Providers keep **control & monitoring** of usage; easy **internal/external** sharing; supports **monetisation** models.
-* Great for building a **data ecosystem** (e.g., share with partners or lines of business).
-
-> 💡 **Exam Tip**
-> Keywords like “share externally,” “avoid data duplication,” “monitor usage,” “managed marketplace” → **Analytics Hub**.
-
----
-
-## 10) 🧪 Hands-On Recap (from your lab)
-
-1. **Create a dataset** `nyctaxi`.
-2. **Load CSV** (Console): *Create table → Upload → CSV → Auto-detect → Table: `2018trips`*.
-3. **Query** top fares:
-
-   ```sql
-   SELECT * FROM nyctaxi.2018trips ORDER BY fare_amount DESC LIMIT 5;
-   ```
-4. **Append** more data from **GCS** (CLI) with `bq load --noreplace`.
-5. **Create January table** (CTAS) and **find longest trip**:
-
-   ```sql
-   SELECT * FROM nyctaxi.january_trips
-   ORDER BY trip_distance DESC
-   LIMIT 1;
-   ```
-
----
-
-## 11) 🧠 Quick Decision Trees (print-worthy)
-
-**Choosing an ingestion path**
-
-* Files batch → **Storage Transfer** or direct upload → **GCS** → **BigQuery load/external**.
-* Events/streaming → **Pub/Sub** → **Dataflow** (or BigQuery streaming) → **BigQuery**.
-
-**Choosing a storage system**
-
-* Analytics/SQL at scale → **BigQuery**.
-* Low-latency key/value/time-series → **Bigtable**.
-* Global relational with transactions → **Spanner**.
-* Traditional relational app → **Cloud SQL** (or **AlloyDB** if you need more performance).
-* App docs, serverless → **Firestore**.
-* Files/objects, cheap & durable → **Cloud Storage**.
-
-**Choosing transform pattern**
-
-* Mostly SQL; want speed to insights → **ELT in BigQuery**.
-* Complex streaming / exactly-once → **Dataflow**.
-* Existing Spark codebase → **Dataproc**.
+* Analytics warehouse → **BigQuery**
+* Low-latency lookup/time-series/features → **Bigtable**
+* Global relational ACID + horizontal scale → **Spanner**
+* Traditional relational app DB → **Cloud SQL / AlloyDB**
+* Serverless document DB for apps → **Firestore**
+* Object/files/landing zone → **Cloud Storage**
 
 ---
 
 ## 12) ✅ Micro-Checklist for the Exam
 
-* ✅ Define **source vs sink** and map GCP services to each pipeline stage.
-* ✅ Identify correct store: **BigQuery vs Bigtable vs Spanner vs Cloud SQL vs Firestore vs GCS**.
-* ✅ Recall **Cloud Storage classes** and when to use each.
-* ✅ Understand **EL / ETL / ELT** and pick based on scenario.
-* ✅ BigQuery must-knows: `project.dataset.table`, **IAM scopes**, **partitioning & clustering**, **CTAS**, **bq load** flags.
-* ✅ Governance & sharing keywords: **Dataplex** (unified metadata/governance), **Analytics Hub** (in-place sharing/monetisation).
+* ✅ Data engineer’s role: pipelines → usable data → production operations
+* ✅ 4 stages: replicate/migrate → ingest → transform → store
+* ✅ Define **source vs sink** (Cloud Storage/PubSub vs BigQuery/Bigtable)
+* ✅ Unstructured vs structured vs semi-structured placement
+* ✅ GCS facts: HTTP access, range GET, max object size **5 TB**, storage classes
+* ✅ BigQuery facts: `project.dataset.table`, datasets scoped to project, IAM levels
+* ✅ Governance keywords → **Dataplex**
+* ✅ Sharing/monetisation keywords → **Analytics Hub**
 
 ---
 
-## 13) 🎯 Practice Prompts (teach-yourself checks)
+## 13) 🧪 Quiz mapping (what they’re really testing)
 
-1. *You need to share a curated dataset with a partner without copying data and want to monitor their usage. What service?* → **Analytics Hub**.
-2. *IoT readings at 100K writes/sec, sub-10ms reads by row key—what store?* → **Bigtable**.
-3. *Legacy MySQL app migrates with minimal change—what service?* → **Cloud SQL (MySQL)**.
-4. *You must query CSVs in GCS immediately, no load step—what to create?* → **External table in BigQuery**.
-5. *Query cost too high scanning months of data by `event_date`—what to do?* → **Partition by date** and **filter on it**; consider **clustering**.
+1. Primary function of data engineer → **build & maintain pipelines**
+2. Unstructured (images/videos) → **Cloud Storage**
+3. Lake vs warehouse → **raw vs processed/organised**
+4. Analytics Hub → **secure controlled sharing inside/outside org**
+5. Modify for downstream requirements → **Transform stage**
 
 ---
 
-### 👩‍🏫 Final thought (teacher’s nudge)
-
-If you can **explain why** a workload belongs in **BigQuery** vs **Bigtable** vs **Spanner**, and **show** how to load/query/partition in BigQuery, you will ace a big chunk of the questions in this module’s scope. Keep these patterns in your head and map scenarios to them quickly.
+If you want, paste your **next module’s draft** (or just the transcripts) and I’ll keep updating them in the same style, making sure each README stays **deduped + exam-oriented**.
