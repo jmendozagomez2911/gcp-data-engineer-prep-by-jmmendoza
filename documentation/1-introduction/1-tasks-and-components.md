@@ -257,7 +257,3 @@ WHERE EXTRACT(MONTH FROM pickup_datetime) = 1;
 3. Lake vs warehouse → **raw vs processed/organised**
 4. Analytics Hub → **secure controlled sharing inside/outside org**
 5. Modify for downstream requirements → **Transform stage**
-
----
-
-If you want, paste your **next module’s draft** (or just the transcripts) and I’ll keep updating them in the same style, making sure each README stays **deduped + exam-oriented**.
