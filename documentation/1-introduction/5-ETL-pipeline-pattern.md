@@ -1,264 +1,170 @@
-# 🛠️⚡ **README — Module 03: The Extract, Transform, and Load (ETL) Data Pipeline Pattern**
+# 🛠️⚡ README — Module 03: ETL Data Pipeline Pattern (Google Cloud)
 
-+ **Goal:** Know when to use **ETL** (transform **before** load), which Google Cloud tools fit (GUI + open-source), and how batch & streaming ETL land in **BigQuery**/**Bigtable**.
-+ **Read me like this:** 1) mental model & architecture → 2) GUI tools → 3) Dataproc (batch) → 4) Dataproc Serverless for Spark → 5) Streaming (Pub/Sub + Dataflow) → 6) Bigtable’s role → 7–8) lab recaps → 9) exam cheats.
+## Goal of this module
+
+Understand **ETL (Extract → Transform → Load)** in Google Cloud, the **main ETL tools**, and how **batch vs streaming** pipelines land in **BigQuery** (analytics) or **Bigtable** (low-latency serving).
 
 ---
 
-## 1) 🧭 What is ETL? (baseline architecture)
+## 1) 🧭 What ETL means (baseline architecture)
 
-**ETL = Extract → Transform → Load.**
-You **clean/shape/enrich** data **before** loading to an analytics store.
+**ETL = you transform the data *before* it lands in the destination store.**
+So the **transformation happens on a processing engine** (GUI tool runner / Spark / Beam), and then the output is **loaded** into BigQuery or Bigtable.
 
 **Baseline flow**
 
-1. **Extract** from sources (DBs, files, SaaS, streams).
-2. **Transform** on an engine (**GUI tools, Spark, Beam, Python**).
-3. **Load** into **BigQuery** (analytics) or **Bigtable** (operational/serving).
+1. **Extract**: databases, files, SaaS apps, event streams
+2. **Transform**: run on a processing service (visual tools, Spark, Beam)
+3. **Load**: write results to **BigQuery** (analytics) and/or **Bigtable** (serving)
 
-**Why choose ETL (vs ELT)**
+**When ETL is the right answer**
 
-* Regulatory/PII rules require pre-load masking/aggregation.
-* Heavy reshaping best handled on **Spark/Beam**.
-* Reusable pipelines that deliver **ready-to-use** curated data.
-
-> 💡 **Exam Tip**
-> If the scenario stresses **“must anonymize/validate before warehouse”** or **non-SQL heavy transformations**, answer **ETL** with **Dataproc/Dataflow** (possibly fronted by **Dataprep/Data Fusion**).
+* You must **clean/mask/anonymise/validate** before data is stored in the warehouse.
+* The transformation is **heavy / non-SQL / needs Spark/Beam**.
+* You want a repeatable pipeline that always produces “curated” output.
 
 ---
 
-## 2) 🧑‍🎨 GUI tools for ETL (no/low-code)
+## 2) 🧑‍🎨 GUI tools (visual / low-code ETL)
 
-### 🧼 Dataprep by Trifacta
+### 🧼 Dataprep (Trifacta/Alteryx-style “recipes”)
 
-* **Serverless, no-code wrangling**; visual “recipes” of transforms.
-* Smart suggestions (find/replace, extract, split, dedupe).
-* Executes on **Dataflow**, includes **scheduling & monitoring**.
+Think of Dataprep as: **“visual data cleaning and preparation”**.
 
-### 🔗 Data Fusion
+* You connect to sources and build a **recipe**: a chain of transformations (split, replace, extract, dedupe, etc.).
+* You can preview the effect before running.
+* When you execute, the transformation can run as a job (the module describes it running with Dataflow in the background).
 
-* **GUI data integration** (drag-and-drop pipelines).
-* Connects on-prem & cloud (extensible with **plugins**).
-* Executes on **Hadoop/Spark**; preview data at each stage.
-* Example: **join** two SAP tables → write one branch to **GCS**, another to **BigQuery** with a transform.
+*(High-yield memory)*: **Dataprep = analyst-friendly wrangling + recipes + visual preview**.
+(Training/labs still present it as a Google Cloud tool for no-code data prep.) ([Google Cloud][1])
 
-> 💡 **Exam Tip**
-> “Enterprise GUI integration, hybrid sources, custom plugins” → **Data Fusion**.
-> “Analyst-friendly data cleaning, visual suggestions, runs on Dataflow” → **Dataprep**.
+### 🔗 Cloud Data Fusion (enterprise integration, drag-and-drop pipelines)
+
+Think of Data Fusion as: **“visual pipeline builder for many systems (including on-prem)”**.
+
+* Drag-and-drop **sources → transforms → sinks**.
+* Built on **CDAP** (open-source) and supports many connectors/plugins. ([Google Cloud][2])
+* It can execute pipelines using managed runtimes, including creating **ephemeral Dataproc clusters** in some setups. ([Google Cloud Documentation][3])
+
+*(High-yield memory)*: **Data Fusion = enterprise integration + hybrid (on-prem + cloud) + plugins**. ([Google Cloud][2])
+
+> **Exam rule of thumb**
+>
+> * “No-code wrangling / recipes / data cleaning preview” → **Dataprep**
+> * “Enterprise integration, lots of connectors, hybrid/on-prem, drag-and-drop pipelines” → **Data Fusion**
 
 ---
 
 ## 3) 🐘 Dataproc (managed Hadoop/Spark) — batch ETL
 
-* Managed **Hadoop/Spark** on **GCE/GKE** with **workflow templates**, **autoscaling**, **ephemeral or long-lived clusters**.
-* Storage options:
+Dataproc is: **managed Hadoop/Spark** on Google Cloud when you want the open-source ecosystem.
 
-    * **Cloud Storage** for durable data (common; no need for HDFS on disks).
-    * **HDFS on PD** if needed; connectors for **BigQuery**/**Bigtable**.
-* **Workflow Templates (YAML)** define multi-step jobs with dependencies; submit via `gcloud`.
-* **Spark** ecosystem: Spark SQL, Streaming, MLlib, GraphX. Languages: **SQL, Py/Scala/Java, R**.
+Use it when:
 
-> 💡 **Exam Tip**
-> “Lift & shift Spark/Hadoop,” “custom Spark code,” “controlled cluster sizing” → **Dataproc**.
+* you already have Spark/Hadoop jobs (lift-and-shift),
+* you need full control of cluster behaviour (versions, init actions, tuning),
+* you want batch ETL with Spark and connectors to sinks like BigQuery / Bigtable.
 
----
-
-## 4) 🚀 Dataproc **Serverless for Spark**
-
-* **No cluster management**; **auto-scales**, **pay-per-use**, fast startup, no resource contention.
-* Two modes:
-
-    * **Batches** (submit with `gcloud`, great for scheduled jobs).
-    * **Interactive sessions** (JupyterLab; notebooks local or in GCP).
-* Deep integrations: **Dataproc History Server**, **Dataproc Metastore**, **BigQuery external procedures**, **Vertex AI Workbench**, **Cloud Storage**.
-* Under the hood, it spins **ephemeral clusters** per job/session.
-
-> 💡 **Exam Tip**
-> “Run Spark but don’t manage clusters” → **Dataproc Serverless (batches or notebooks)**.
+**Workflow Templates**
+Dataproc supports workflow templates to define **multi-step jobs + dependencies** (often described as YAML-defined workflows submitted via CLI).
 
 ---
 
-## 5) 🌊 Streaming ETL on Google Cloud
+## 4) 🚀 Dataproc Serverless for Spark (Spark without managing clusters)
 
-### Batch vs Streaming (quick contrast)
+This is the “Spark but I don’t want clusters” option.
 
-* **Batch**: fixed, periodic sets (e.g., payroll, billing).
-* **Streaming**: continuous events (fraud, IoT, clickstream, ops).
+* You submit Spark work and Google manages the infrastructure.
+* Two execution modes:
 
-### Core pattern
+  * **Batch workloads**
+  * **Interactive sessions** (notebooks/dev exploration) ([Google Cloud Documentation][4])
+* Pricing is **pay-per-execution** (billed per second with minimums), so it’s good for bursty workloads. ([Google Cloud][5])
 
-1. **Ingest** events → **Pub/Sub** (decoupled, durable, high throughput).
-2. **Process** in near real time → **Dataflow** (**Apache Beam**) with windows, state, exactly-once sinks.
-3. **Load** to **BigQuery** (analytics) and/or **Bigtable** (serving/low-latency).
+*(High-yield memory)*: **Dataproc Serverless = Spark jobs, no cluster ops, batch + interactive**. ([Google Cloud Documentation][4])
 
-### Dataflow (Beam) essentials
+---
 
-* One codebase for **batch & streaming** (Java/Python/Go).
-* **Templates** (Google-provided or custom) decouple design from deployment; parameterize inputs/outputs.
-* Notebooks for rapid prototyping.
+## 5) 🌊 Streaming ETL on Google Cloud (Pub/Sub + Dataflow)
 
-> 💡 **Exam Tip**
-> Keywords **“windowing, event time, Pub/Sub, near real-time to BigQuery”** → **Dataflow**.
-> Need **reusable pipelines** → **Dataflow templates**.
+### Batch vs Streaming
+
+* **Batch**: fixed dataset processed periodically (payroll, billing)
+* **Streaming**: continuous events (fraud detection, clickstream, IoT)
+
+### Core streaming ETL pattern
+
+1. **Ingest** events into **Pub/Sub** (acts like a scalable event hub)
+2. **Process** in real time with **Dataflow**
+3. **Load** results into:
+
+  * **BigQuery** for analytics
+  * and/or **Bigtable** for low-latency serving
+
+### Dataflow essentials
+
+Dataflow is Google’s managed runner for **Apache Beam** (batch + streaming in one model).
+Templates are a big exam concept:
+
+* **Templates separate design from deployment** (dev builds template; others deploy later). ([Google Cloud Documentation][6])
+* Templates are **parameterised**, so the same pipeline can be reused with different inputs/outputs. ([Google Cloud Documentation][6])
+* You can deploy templates from Console, CLI, or API. ([Google Cloud Documentation][6])
+
+*(High-yield memory)*: **Streaming keywords “Pub/Sub + Beam + Dataflow + templates” → Dataflow**. ([Google Cloud Documentation][6])
 
 ---
 
 ## 6) 🧱 Bigtable’s role in pipelines
 
-* **Wide-column NoSQL** with **sub-10 ms** reads/writes, petabyte scale.
-* **Row key** design = your index (optimize for access pattern).
-* Great for **time series, IoT telemetry, financial ticks, personalization features**.
-* Often paired with streaming:
+Bigtable is a **wide-column NoSQL** database designed for **very low latency and high throughput**. It’s commonly used as the “serving store” in streaming architectures when you need fast lookups. ([Google Cloud Documentation][7])
 
-    * **Dataflow** → **Bigtable** for serving features/operational lookups,
-    * and/or → **BigQuery** for analytics.
+Key ideas (high-yield):
 
-> 💡 **Exam Tip**
-> “Millisecond latency over high-throughput time-series/IoT” → **Bigtable** (not BigQuery).
+* Bigtable is ideal for **large amounts of single-keyed data** with low latency. ([Google Cloud Documentation][7])
+* The **row key is the primary index** (design it based on access patterns). ([Google Cloud Documentation][8])
+* Typical fit: time series, IoT telemetry, clickstream, financial ticks, feature serving. ([Google Cloud][9])
 
----
-
-## 7) 🧪 Lab Recap #1 — **Dataproc Serverless for Spark → BigQuery (batch)**
-
-### Setup snippets
-
-```bash
-# Enable Private IP Google Access for default subnet
-gcloud compute networks subnets update default --region=REGION --enable-private-ip-google-access
-
-# Buckets
-gsutil mb -p PROJECT_ID gs://PROJECT_ID
-gsutil mb -p PROJECT_ID gs://PROJECT_ID-bqtemp
-
-# BigQuery dataset
-bq mk -d loadavro
-```
-
-### Get assets + run template (on a provided VM)
-
-```bash
-wget https://storage.googleapis.com/cloud-training/dataengineering/lab_assets/idegc/campaigns.avro
-gcloud storage cp campaigns.avro gs://PROJECT_ID
-
-wget https://storage.googleapis.com/cloud-training/dataengineering/lab_assets/idegc/dataproc-templates.zip
-unzip dataproc-templates.zip
-cd dataproc-templates/python
-
-export GCP_PROJECT=PROJECT_ID
-export REGION=REGION
-export GCS_STAGING_LOCATION=gs://PROJECT_ID
-export JARS=gs://cloud-training/dataengineering/lab_assets/idegc/spark-bigquery_2.12-20221021-2134.jar
-
-./bin/start.sh -- --template=GCSTOBIGQUERY \
-  --gcs.bigquery.input.format="avro" \
-  --gcs.bigquery.input.location="gs://PROJECT_ID" \
-  --gcs.bigquery.input.inferschema="true" \
-  --gcs.bigquery.output.dataset="loadavro" \
-  --gcs.bigquery.output.table="campaigns" \
-  --gcs.bigquery.output.mode=overwrite \
-  --gcs.bigquery.temp.bucket.name="PROJECT_ID-bqtemp"
-```
-
-### Validate in BigQuery
-
-```bash
-bq query --use_legacy_sql=false 'SELECT * FROM `loadavro.campaigns`;'
-```
+> **Exam rule of thumb**
+>
+> * “analytics warehouse” → **BigQuery**
+> * “millisecond serving / fast key lookups / time-series at scale” → **Bigtable** ([Google Cloud Documentation][7])
 
 ---
 
-## 8) 🧪 Lab Recap #2 — **Streaming dashboard with Dataflow → BigQuery → Looker Studio**
+## 7) 🧪 Lab recap — Serverless Spark → BigQuery (batch)
 
-### Create dataset & table (partitioned)
+Core point: you used **Dataproc Serverless batch** to run a Spark job/template that reads an Avro file from **GCS** and loads a table into **BigQuery** (BigQuery connector jar involved).
 
-```bash
-bq --location=Region mk taxirides
-bq --location=Region mk \
-  --time_partitioning_field timestamp \
-  --schema ride_id:string,point_idx:integer,latitude:float,longitude:float,\
-timestamp:timestamp,meter_reading:float,meter_increment:float,ride_status:string,\
-passenger_count:integer -t taxirides.realtime
-```
-
-### Stage artifacts to GCS
-
-```bash
-gcloud storage cp gs://cloud-training/bdml/taxisrcdata/schema.json  gs://Project_ID-bucket/tmp/schema.json
-gcloud storage cp gs://cloud-training/bdml/taxisrcdata/transform.js gs://Project_ID-bucket/tmp/transform.js
-gcloud storage cp gs://cloud-training/bdml/taxisrcdata/rt_taxidata.csv gs://Project_ID-bucket/tmp/rt_taxidata.csv
-```
-
-### Dataflow job (template)
-
-* Template: **Cloud Storage Text to BigQuery (Stream)**
-* Key params:
-
-    * Input: `gs://Project_ID-bucket/tmp/rt_taxidata.csv`
-    * Schema JSON: `gs://Project_ID-bucket/tmp/schema.json`
-    * Output table: `Project_ID:taxirides.realtime`
-    * Temp dir: `gs://Project_ID-bucket/tmp`
-    * JS UDF path: `gs://Project_ID-bucket/tmp/transform.js`
-    * JS UDF name: `transform`
-    * Workers: 1–2 (e2-medium)
-
-### Query stream & aggregate
-
-```sql
-SELECT * FROM taxirides.realtime LIMIT 10;
-
-WITH streaming_data AS (
-  SELECT
-    timestamp,
-    TIMESTAMP_TRUNC(timestamp, MINUTE, 'UTC') AS minute,
-    ride_id, latitude, longitude, meter_reading, ride_status, passenger_count
-  FROM taxirides.realtime
-  ORDER BY timestamp DESC
-  LIMIT 1000
-)
-SELECT
-  ROW_NUMBER() OVER() AS dashboard_sort,
-  minute,
-  COUNT(DISTINCT ride_id) AS total_rides,
-  SUM(meter_reading)     AS total_revenue,
-  SUM(passenger_count)   AS total_passengers
-FROM streaming_data
-GROUP BY minute, timestamp;
-```
-
-### Visualize
-
-* In BigQuery results → **Open in Looker Studio**.
-* Use `dashboard_sort` for the x-axis (minute timestamps have limitations in LS).
-* Build **combo** or **time-series** charts and save the report.
+*(This matches the module’s message: Spark execution happens in Serverless Spark; BigQuery is the destination.)* ([Google Cloud Documentation][4])
 
 ---
 
-## 9) 🧠 Quick decision cheats
+## 8) 🧪 Lab recap — Streaming pipeline Dataflow → BigQuery → Looker Studio
 
-* **GUI wrangling (no code)** → **Dataprep**.
-* **GUI enterprise integration, hybrid** → **Data Fusion**.
-* **Custom Spark/Hadoop batch ETL** → **Dataproc** (clusters).
-* **Don’t manage clusters; run Spark** → **Dataproc Serverless** (batch or notebook).
-* **Pub/Sub streaming → transform → BQ** → **Dataflow (Beam)**; use **templates** for reuse.
-* **Low-latency serving store for streaming features** → **Bigtable**.
-* **Must transform/anonymize before warehouse** → **ETL** (Dataproc/Dataflow) not ELT.
+Core point: you created a **Dataflow streaming job from a template**, wrote to **BigQuery**, then visualised results in Looker Studio.
+The reusable/parameterised part is the **template**. ([Google Cloud Documentation][6])
 
 ---
 
-## ✅ Micro-Checklist (exam cram)
+## 9) 🧠 Exam cheats (the fast decision map)
 
-* Define **ETL** vs **ELT** and justify **pre-load transform** cases.
-* Dataprep vs Data Fusion: who uses them and where they run.
-* Dataproc: clusters vs **Serverless**, workflow templates, storage options, connectors to **BQ/BT**.
-* Dataflow: **Beam**, templates, Pub/Sub integration, streaming/batch unification.
-* Streaming architecture: **Pub/Sub → Dataflow → BQ/BT**; windowing & exactly-once sinks (conceptual).
-* Bigtable fit: **time-series/IoT/low-latency** with careful **row-key** design.
-* Labs: know the **Spark template to BQ** (Dataproc Serverless) and **Dataflow template streaming to BQ**, plus **Looker Studio** visualization step.
+* **Dataprep** → visual **data wrangling recipes** (no/low code), preview-first ([Google Cloud][1])
+* **Data Fusion** → enterprise **integration pipelines**, hybrid/on-prem, plugins (CDAP) ([Google Cloud][2])
+* **Dataproc** → managed **Spark/Hadoop clusters** (control + open-source ecosystem)
+* **Dataproc Serverless for Spark** → **Spark without cluster management**, batch + interactive ([Google Cloud Documentation][4])
+* **Dataflow** → serverless **Beam** for batch/streaming; **templates** = reuse + parameters ([Google Cloud Documentation][6])
+* **Bigtable** → low-latency wide-column NoSQL serving store ([Google Cloud Documentation][7])
 
 ---
 
-### 👩‍🏫 Teacher’s nudge
+If you want, I can also rewrite this into an even more “quiz-optimised” version (shorter, with only the phrases that typically appear in questions), but this version should already fix the confusion you had about **what runs where** and **why each tool exists**.
 
-When you see **“real-time, events, Pub/Sub, windowing”** think **Dataflow**.
-When you see **“Spark code, no cluster ops”** think **Dataproc Serverless**.
-And if they say **“transform BEFORE warehouse due to policy/shape”**, pick **ETL** with the right engine, not ELT.
+[1]: https://cloud.google.com/blog/products/gcp/google-cloud-dataprep-is-now-a-public-beta?utm_source=chatgpt.com "Google Cloud Dataprep is now a public beta"
+[2]: https://cloud.google.com/data-fusion?utm_source=chatgpt.com "Cloud Data Fusion"
+[3]: https://docs.cloud.google.com/data-fusion/docs/release-notes?utm_source=chatgpt.com "Cloud Data Fusion release notes"
+[4]: https://docs.cloud.google.com/dataproc-serverless/docs/overview?utm_source=chatgpt.com "Serverless for Apache Spark overview"
+[5]: https://cloud.google.com/dataproc-serverless/pricing?utm_source=chatgpt.com "Serverless for Apache Spark pricing - Dataproc"
+[6]: https://docs.cloud.google.com/dataflow/docs/concepts/dataflow-templates?utm_source=chatgpt.com "Dataflow templates"
+[7]: https://docs.cloud.google.com/bigtable/docs/overview?utm_source=chatgpt.com "Bigtable overview"
+[8]: https://docs.cloud.google.com/bigtable/docs/schema-design?utm_source=chatgpt.com "Schema design best practices | Bigtable"
+[9]: https://cloud.google.com/bigtable?utm_source=chatgpt.com "Bigtable: Fast, Flexible NoSQL"
