@@ -1,53 +1,73 @@
-# 🤖📅 **README — Module 03: Automation Techniques**
+# 🤖📅 README — Module 03: Automation Techniques (Updated)
 
-**Goal:** Pick the *right* automation style for your data pipelines (ETL/ELT), wire it up with the correct GCP service, and know the IAM + reliability knobs the exam loves.
+**Goal:** Pick the *right* automation style for ETL/ELT pipelines, map it to the correct GCP service, and remember the IAM + “serverless vs not” details the exam loves.
 
-**Read me like this:** 1) patterns → 2) Cloud Scheduler & Workflows → 3) Cloud Composer (Airflow) → 4) Cloud Run functions → 5) Eventarc → 6) Hands-on lab (Cloud Run → BigQuery) → 7) Exam cheats + gotchas.
+**How to read:** 1) patterns → 2) Cloud Scheduler + Workflows → 3) Cloud Composer → 4) Cloud Run functions → 5) Eventarc → 6) Lab recap (Cloud Run → BigQuery) → 7) Exam cheats.
 
 ---
 
-## 1) 🧭 Automation patterns you must recognize
+## 1) 🧭 Automation patterns you must recognise
 
-### A. **Time-based (scheduled)**
+Google Cloud automation splits cleanly into **scheduled** vs **event-driven**.
 
-* Run at fixed times (hourly, nightly, monthly closes).
-* Tools: **Cloud Scheduler** (simple triggers) → HTTPS / Pub/Sub / **Workflows**; or full DAG with **Cloud Composer**.
-* Typical: ELT in BigQuery (**scheduled query / Dataform**), daily backfills (Transfer Service), periodic Spark batches.
+### A) Time-based (scheduled)
 
-### B. **Event-driven**
+* Run on a defined cadence (hourly, nightly, month-end).
+* Typical examples:
 
-* React to *something that happens*: file arrives, row inserted, message published, log emitted.
-* Tools: **Cloud Run functions** (serverless code) and **Eventarc** (routes CloudEvents from >90 sources).
-* Typical: “GCS object finalized → transform → load”, “BQ audit log → rebuild dashboard”, “Pub/Sub message → feature write to Bigtable”.
+    * Scheduled ELT: **BigQuery extract/transform + Dataform + load back to BigQuery**
+    * Nightly backfills, periodic Spark batches
+* Main services:
 
+    * **Cloud Scheduler** (simple cron trigger)
+    * **Workflows** (multi-step orchestration, YAML)
+    * **Cloud Composer** (Airflow DAG orchestration)
 
-Keep this mapping in your head:
+### B) Event-driven
 
-| Trigger type                                                   | Smallest-correct tool                            | When it’s not enough                                                |
-| -------------------------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------- |
-| Every day at 01:00 run X                                       | **Cloud Scheduler** → HTTP / Pub/Sub / Workflows | When you need multi-step orchestration → **Workflows**              |
-| Call service A then B with conditionals/retries                | **Workflows** (YAML)                             | Complex cross-env DAG, Airflow operators → **Composer**             |
-| File lands in GCS → run code                                   | **Cloud Run function (gen2)** via **Eventarc**   | Heavy Spark step → call **Dataproc** from the function              |
-| BigQuery insert/audit event → trigger action                   | **Eventarc** → Cloud Run/Workflows               | If you need downstream DAG → **Composer**                           |
-| Long, dependency-rich pipeline across GCS/BQ/Dataproc/Dataflow | **Cloud Composer** (Airflow)                     | If only a few API calls, prefer **Workflows** (cheaper, serverless) |
+* Run when *something happens*: file upload, message published, audit log emitted, etc.
+* Typical examples:
 
-> **Exam tip:**: Only **Composer** isn’t serverless. Everything else here is.
->
-> **Exam tip:**
-> * “Cron every day at 2am” → Scheduler.
-> * “Call service A then B with retries and conditionals” → Workflows.
-> * “Airflow DAG across on-prem + GCP with retries/SLAs” → Composer.
-> * “When a file lands in GCS run code” → Cloud Run function (triggered by Eventarc).
-> * “Capture BigQuery insert (Audit Log) and fan-out” → Eventarc.
+    * “GCS object finalised → process → load to BigQuery”
+    * “BigQuery insert/write event → rebuild dashboard / retrain model”
+* Main services:
+
+    * **Cloud Run functions** (serverless code execution)
+    * **Eventarc** (routes CloudEvents from many sources to targets)
+
 ---
 
-## 2) ⏰ Cloud Scheduler + 🧩 Workflows (the lightweight combo)
+### ✅ Core mapping (keep this in your head)
 
-**Cloud Scheduler** = managed cron. Triggers: HTTPS, App Engine, **Pub/Sub**, **Workflows**.
+| Trigger / Requirement                             | Smallest correct tool                               | When it’s not enough                                                 |
+| ------------------------------------------------- | --------------------------------------------------- | -------------------------------------------------------------------- |
+| “Every day at 01:00 run X”                        | **Cloud Scheduler**                                 | If X is multi-step → **Workflows**                                   |
+| “Call A then B with retries/conditions”           | **Workflows**                                       | If it’s a complex DAG (many tasks/sensors/backfills) → **Composer**  |
+| “File uploaded to GCS → run code”                 | **Cloud Run function** (triggered via **Eventarc**) | If heavy Spark/cluster work → function calls **Dataproc**            |
+| “Trigger on audit/log events (BQ insert/write)”   | **Eventarc** → Cloud Run/Workflows                  | If you need full downstream DAG orchestration → **Composer**         |
+| “Complex dependency-rich pipeline across systems” | **Cloud Composer** (Airflow)                        | If only a few API calls, prefer **Workflows** (serverless + simpler) |
 
-**Workflows** = YAML state machine to call Google APIs in sequence with branching/retries—perfect when you need a few steps but not a full Airflow cluster.
+> 💡 **Exam Tip**
+> Only **Cloud Composer** is *not* serverless here. **Scheduler, Workflows, Cloud Run functions, Eventarc** are serverless.
 
-**Common pattern (Dataform ELT build):** Scheduler → Workflows → Dataform APIs (compile + run a tagged subset).
+---
+
+## 2) ⏰ Cloud Scheduler + 🧩 Workflows (lightweight scheduled automation)
+
+### Cloud Scheduler (managed cron)
+
+* Automates tasks by invoking workloads at **recurring intervals**.
+* You control **frequency** and **time of day**.
+* Triggers: **HTTP/S**, App Engine HTTP, **Pub/Sub**, **Workflows**.
+* Common usage: “Scheduled run of a Dataform workflow”.
+
+### Workflows (YAML orchestration)
+
+* A **state machine** to call Google APIs in sequence.
+* Supports **branching, retries, conditionals**, and structured multi-step jobs.
+* Ideal when you need orchestration but don’t want Airflow.
+
+#### Common exam pattern: Scheduler → Workflows → Dataform API (compile + invoke tagged subset)
 
 ```yaml
 # workflows.yaml (shape)
@@ -61,208 +81,138 @@ main:
         auth: { type: OAuth2 }
         body: { codeCompilationConfig: { defaultDatabase: projectId } }
       result: comp
-  - run:
+  - invoke:
       call: http.post
       args:
         url: https://dataform.googleapis.com/v1beta1/projects/${projectId}/locations/${region}/repositories/${repo}:createWorkflowInvocation
         auth: { type: OAuth2 }
         body:
-          workflowInvocation: { compilationResult: ${comp.body.name}, includedTags: ${tags} }
+          workflowInvocation:
+            compilationResult: ${comp.body.name}
+            includedTags: ${tags}
 ```
 
-**When to choose:** simple schedules, API chaining, no need for Airflow’s DAG graph.
+> 💡 **Exam Tip**
+> “Low coding effort + YAML + scheduled trigger + multi-step API chaining” → **Cloud Scheduler + Workflows**.
 
 ---
 
 ## 3) 🐍 Cloud Composer (Apache Airflow) — full orchestration
 
-* Managed Airflow, Python DAGs, rich **operators** (BigQuery, Dataproc, Dataflow, GCS, Pub/Sub…), retries, SLAs, backfills, sensors.
-* Use for **complex** dependency graphs, *many* systems, backfills, conditional branches.
+**Cloud Composer** is the **central orchestrator** when workflows span many systems (GCP, on-prem, multicloud).
 
-**Mini-DAG you should understand (shape):**
+* Based on **Apache Airflow**
+* Core concepts: **operators**, **tasks**, **dependencies**, **DAG (Directed Acyclic Graph)**
+* Features: **triggering, monitoring, logging, retries, error handling**, backfills, sensors
+* Dev experience: **Python** DAGs
 
-```python
-from airflow import DAG
-from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
-from airflow.providers.google.cloud.operators.bigquery import BigQueryInsertJobOperator
-from airflow.providers.google.cloud.operators.dataproc import DataprocSubmitJobOperator
-from datetime import datetime
+### “Shape” you should recognise
 
-with DAG("analytics_daily", start_date=datetime(2025,1,1), schedule="@daily", catchup=False) as dag:
-    gcs_to_bq = GCSToBigQueryOperator(
-        task_id="load_raw",
-        bucket="raw-bucket",
-        source_objects=["sales/{{ ds }}/*.parquet"],
-        destination_project_dataset_table="proj.raw.sales",
-        source_format="PARQUET", write_disposition="WRITE_APPEND"
-    )
+A typical analytics DAG might:
 
-    model_sql = """
-      CREATE OR REPLACE TABLE proj.curated.sales_day AS
-      SELECT * FROM proj.raw.sales WHERE DATE(ts) = DATE('{{ ds }}');
-    """
-    curate = BigQueryInsertJobOperator(
-        task_id="curate", configuration={"query": {"query": model_sql, "useLegacySql": False}}
-    )
+1. pull file from **GCS**
+2. load into **BigQuery**
+3. run SQL (joins/curation)
+4. trigger **Dataproc** for deeper transforms
 
-    spark_job = {"reference": {"project_id": "proj"},
-                 "placement": {"cluster_name": "etl-cluster"},
-                 "pysparkJob": {"mainPythonFileUri": "gs://jobs/feature_gen.py"}}
-    features = DataprocSubmitJobOperator(task_id="features", job=spark_job, region="REGION")
-
-    gcs_to_bq >> curate >> features
-```
-
-> **Exam tip:** “Backfill last 7 days only when upstream succeeded,” “cross-cloud + on-prem,” “fine-grained retries/SLAs” → **Composer**.
+> 💡 **Exam Tip**
+> If the question says “orchestration” + “dependencies / retries / monitoring / backfills” → **Cloud Composer**.
 
 ---
 
-## 4) 🧩 Cloud Run functions (serverless glue)
+## 4) 🧩 Cloud Run functions (serverless event-driven code)
 
-* Execute small units of code on events: **HTTP**, **Pub/Sub**, **GCS**, **Firestore**, custom via **Eventarc**.
-* Great for **file-driven** loads, quick API calls, small transforms, low ops.
+**Cloud Run functions** execute code in response to events.
 
-### Lab code explained (loads Avro → BigQuery)
+* Event sources: **HTTP**, **Pub/Sub**, **Cloud Storage**, **Firestore**, and custom events via **Eventarc**
+* Multi-language runtime (good for teams with different stacks)
+* Best for: “small glue code”, API calls, lightweight transforms, triggering Dataproc/Dataflow, loading into BigQuery
 
-```js
-const {Storage} = require('@google-cloud/storage');
-const {BigQuery} = require('@google-cloud/bigquery');
-const storage = new Storage();
-const bigquery = new BigQuery();
+### Event-driven ETL pattern (from transcript)
 
-exports.loadBigQueryFromAvro = async (event) => {
-  // 1) Event payload from GCS (“object finalized”) has bucket + name
-  const bucketName = event.bucket;         // gs://<bucket>
-  const fileName = event.name;             // e.g. campaigns.avro
-
-  // 2) Decide BQ dataset/table (table = file name without .avro)
-  const datasetId = 'loadavro';
-  const tableId = fileName.replace('.avro','');
-
-  // 3) Load options — let BQ infer schema from Avro, create if needed, overwrite table
-  const options = {
-    sourceFormat: 'AVRO',
-    autodetect: true,
-    createDisposition: 'CREATE_IF_NEEDED',
-    writeDisposition: 'WRITE_TRUNCATE'
-  };
-
-  // 4) Kick off server-side load: GCS object → BigQuery table
-  await bigquery.dataset(datasetId).table(tableId)
-    .load(storage.bucket(bucketName).file(fileName), options);
-
-  // If successful, the table exists/updated and can be queried immediately.
-};
-```
-
-**Why this pattern matters for the exam:** It demonstrates **event-driven ingestion**, idempotent loads (per object), least-ops, and separation of storage (GCS) from warehouse (BQ).
-
-**IAM you typically need**
-
-* Function’s **service account**: `roles/bigquery.dataEditor` (or table-scoped) + `roles/bigquery.jobUser`.
-* Function **trigger**: Eventarc wiring from **GCS → Cloud Run function** (grants for event receiver + GCS service agent to Pub/Sub).
+**GCS upload → Cloud Run function → call Dataproc API → run workflow template → output lands in GCS**
 
 ---
 
-## 5) 🛰️ Eventarc (wire events to targets)
+## 5) 🛰️ Eventarc (event routing layer)
 
-* **Routes CloudEvents** from many sources (GCS, BQ Audit Logs, Pub/Sub, Firebase, custom) to **targets** (Cloud Run, Cloud Functions, Workflows, GKE).
-* You filter by event type & attributes; **language-agnostic** (only the target matters).
+**Eventarc** enables a unified **event-driven architecture**:
 
-**Useful mental model scenarios**
+* Connects many event sources (Google Cloud services, third-party, custom via Pub/Sub)
+* Targets include **Cloud Run functions**, Workflows, etc.
+* Uses **CloudEvents** standard format
+* Great for “less frequent / audit-log driven” triggers
 
-* “Whenever a **BigQuery table** gets new rows (Audit Log: `InsertJob` writing to table), **trigger** a recompute (Cloud Run/Workflows).”
-* “When **GCS** file arrives under `/landing/2025/` only, **invoke** a specific transform.”
+### High-yield scenario
 
-> **Exam tip:** If you see “**on insert/update** trigger X” or “**audit-log** driven action,” it’s **Eventarc → Cloud Run**.
+* **BigQuery insert/write** generates a **Cloud Audit Log event**
+* Eventarc captures it and triggers actions such as:
 
----
+    * rebuild dashboard
+    * retrain ML model
+    * run a custom pipeline step
 
-## 6) 🧪 Lab recap — Cloud Run function → BigQuery (end-to-end)
-
-1. **Enable/Configure**
-
-```bash
-export PROJECT_ID=$(gcloud config get-value project)
-export REGION=REGION
-gcloud config set run/region $REGION
-gcloud config set eventarc/location $REGION
-gcloud services enable run.googleapis.com eventarc.googleapis.com cloudfunctions.googleapis.com pubsub.googleapis.com logging.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com
-```
-
-2. **Permissions**
-
-```bash
-export PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format='value(projectNumber)')
-gcloud projects add-iam-policy-binding $PROJECT_ID \
-  --member="serviceAccount:$PROJECT_NUMBER-compute@developer.gserviceaccount.com" \
-  --role="roles/eventarc.eventReceiver"
-
-SERVICE_ACCOUNT="$(gcloud storage service-agent --project=$PROJECT_ID)"
-gcloud projects add-iam-policy-binding $PROJECT_ID \
-  --member="serviceAccount:${SERVICE_ACCOUNT}" \
-  --role="roles/pubsub.publisher"
-```
-
-3. **Create resources + deploy**
-
-```bash
-bq mk -d loadavro
-gcloud storage buckets create gs://$PROJECT_ID --location=$REGION
-
-# code (index.js) + deps
-npm install @google-cloud/storage @google-cloud/bigquery
-gcloud functions deploy loadBigQueryFromAvro \
-  --gen2 --runtime nodejs20 --source . --region $REGION \
-  --trigger-resource gs://$PROJECT_ID \
-  --trigger-event google.storage.object.finalize \
-  --memory=512Mi --timeout=540s \
-  --service-account=$PROJECT_NUMBER-compute@developer.gserviceaccount.com
-```
-
-4. **Test + verify**
-
-```bash
-wget https://storage.googleapis.com/cloud-training/dataengineering/lab_assets/idegc/campaigns.avro
-gcloud storage cp campaigns.avro gs://$PROJECT_ID        # triggers the function
-bq query --use_legacy_sql=false 'SELECT * FROM `loadavro.campaigns` LIMIT 10;'
-gcloud logging read "resource.labels.service_name=loadBigQueryFromAvro" --limit=10
-```
-
-**Reliability tips (interview/exam-style)**
-
-* **Idempotency:** guard against duplicate GCS events (check if load job/table version already processed—store processed file names in a meta table).
-* **Back-pressure:** for bursts, prefer **BQ Load Jobs** (like the lab) over streaming inserts.
-* **Least privilege:** restrict dataset/table IAM; use per-function service accounts.
+> 💡 **Exam Tip**
+> If the trigger is **Audit Logs** (especially BigQuery events) → **Eventarc**.
 
 ---
 
-## 7) 🧠 Decision matrix (memorize this vibe)
+## 6) 🧪 Lab recap — Cloud Run function loads Avro from GCS into BigQuery
 
-| Need                                           | Best pick                            |
-| ---------------------------------------------- | ------------------------------------ |
-| Single HTTP/PubSub trigger on a schedule       | **Cloud Scheduler**                  |
-| A few API calls with retries/branching         | **Workflows** (optionally scheduled) |
-| Complex DAGs, dependencies, sensors, backfills | **Cloud Composer (Airflow)**         |
-| Lightweight code on events, serverless         | **Cloud Run functions**              |
-| Route audit/log/object events to targets       | **Eventarc** (+ Cloud Run target)    |
+### What the lab proves
+
+* **Event-driven ingestion**
+* Serverless: file upload triggers compute only when needed
+* Uses **BigQuery load job** (good for batch file ingestion)
+
+### Core flow
+
+1. Deploy Cloud Run function (gen2)
+2. Trigger on **google.storage.object.finalize**
+3. Function loads **Avro → BigQuery table** (autodetect schema)
+4. Validate in BigQuery, view logs
+
+### Key code idea (what the exam cares about)
+
+* Event payload provides `bucket` + `name`
+* Dataset fixed (e.g., `loadavro`)
+* Table derived from filename
+* Load options: **AVRO + autodetect + CREATE_IF_NEEDED + WRITE_TRUNCATE**
 
 ---
 
-## ✅ Micro-Checklist (exam cram)
+## 7) 🧠 Decision matrix (memorise this vibe)
 
-* Distinguish **scheduled vs event-driven** automation.
-* Pick **Composer** for complex orchestration; **Workflows** for small multi-step jobs.
-* Know **Cloud Run function** triggers (HTTP / Pub/Sub / GCS / Firestore via **Eventarc**).
-* IAM basics: **eventReceiver**, **pubsub.publisher**, **bigquery.jobUser**, table-scoped editors.
-* Prefer **BQ Load jobs** for file ingestion; remember **autodetect from Avro**.
-* Reliability: retries, idempotency, regional alignment, dead-letter topics (for Pub/Sub flows).
+| Need                                                  | Best pick               |
+| ----------------------------------------------------- | ----------------------- |
+| Simple cron trigger (HTTP/PubSub)                     | **Cloud Scheduler**     |
+| Multi-step API workflow with retries/branching (YAML) | **Workflows**           |
+| Complex DAG orchestration across many systems         | **Cloud Composer**      |
+| Run code on cloud events (serverless)                 | **Cloud Run functions** |
+| Route CloudEvents (incl. audit/log) to targets        | **Eventarc**            |
+
+> 💡 **Exam Tip (from transcript)**
+>
+> * Cloud Scheduler = **low coding effort** (config-driven)
+> * Cloud Composer = **medium effort** (Python DAG)
+> * Cloud Run functions = multi-language
+> * Eventarc = language-agnostic routing
+> * Only Composer is **not serverless**
 
 ---
 
-### 👩‍🏫 Teacher’s nudge
+## ✅ Micro-Checklist for the exam
 
-If it’s **cron-like** → Scheduler/Workflows.
-If it’s **complex DAGs** → Composer.
-If it’s **“when X happens, run code”** → Cloud Run + Eventarc.
-If you can explain that mapping—and quote a couple IAM roles—you’re answering like a certified Data Engineer.
+* Identify **scheduled vs event-driven** triggers.
+* Scheduler triggers: **HTTP/S**, **Pub/Sub**, **Workflows**.
+* Composer = Airflow: **DAG**, operators, tasks, dependencies, retries, monitoring/logging.
+* Cloud Run functions: respond to **HTTP / Pub/Sub / GCS / Firestore / Eventarc**.
+* Eventarc: **CloudEvents routing**, especially **Audit Log**-driven automation (e.g., BigQuery writes).
+* Remember the quiz definitions:
+
+    * **DAG = Directed Acyclic Graph**
+    * “Central orchestrator” → **Cloud Composer**
+    * “Recurring intervals” → **Cloud Scheduler**
+    * “Execute code on events” → **Cloud Run functions**
+    * “Unified event-driven architecture” → **Eventarc**
+
