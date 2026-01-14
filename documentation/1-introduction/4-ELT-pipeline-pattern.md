@@ -1,176 +1,200 @@
 # 📘✨ **README — Module 03: The Extract, Load, and Transform (ELT) Data Pipeline Pattern**
 
-+ **Goal:** Master ELT on Google Cloud: load first into **BigQuery**, then transform with **SQL/Scripts/Scheduling/Dataform**.
-+ **How to use:** Read top-down. Skim the **Exam Tips**. Copy the examples to practise.
+* **Goal:** Master ELT on Google Cloud: load first into **BigQuery**, then transform with **SQL scripting / scheduled queries / UDFs / stored procedures / remote functions / notebooks**, and scale workflows with **Dataform**.
+* **How to use:** Read top-down. Skim the **Exam Tips**. Copy the examples to practise.
 
 ---
 
 ## 1) 🧭 What is ELT? (mental model + baseline architecture)
 
-**ELT = Extract → Load → Transform** (transform **after** loading into BigQuery).
+**ELT = Extract → Load → Transform** (transform happens **after** loading into BigQuery).
 
 **Why ELT on GCP**
 
-* ✅ **Simplicity & speed**: get data into BigQuery quickly (staging), transform later.
+* ✅ **Simplicity & speed**: land data quickly in BigQuery (**staging**), transform later.
 * ✅ **Scale**: push heavy transforms to BigQuery’s engine.
-* ✅ **Choice**: SQL scripts, scheduled queries, Python/Notebooks, **Dataform**.
+* ✅ **Options**: SQL scripts, scheduled queries, Python/Notebooks, **Dataform**.
 
 **Baseline ELT flow**
 
-1. **Extract** from app DBs/files/SaaS → land **structured** data in **BigQuery staging tables**.
-2. **Transform in BigQuery**: SQL scripts, UDFs, stored procedures, Dataform workflows.
+1. **Extract + Load** into **BigQuery staging tables**.
+2. **Transform in BigQuery** (SQL scripting / scheduled queries / functions / tools like Dataform).
 3. **Publish** to **production tables/views** for BI/ML.
 
 > 💡 **Exam Tip**
-> If the prompt says “*load first, transform in BQ*” or “*use BQ’s compute for transforms*”, the answer is **ELT in BigQuery** (often with **Dataform** when workflows get complex).
+> If the prompt says “*load first, transform in BigQuery*” or “*use BigQuery compute for transforms*”, the answer is **ELT in BigQuery** (often with **Dataform** when workflows get complex).
 
 ---
 
 ## 2) 🔁 A common ELT pipeline on Google Cloud
 
-* **Ingestion**: EL/replication tools (e.g., `bq load`, BDTS, Datastream→BQ/GCS) write to **staging** tables.
+* **Ingestion**: EL/replication tools (e.g., `bq load`, BDTS, Datastream→BQ/GCS) write to **staging**.
 * **Transform**:
 
-    * **SQL** (scripts, UDFs, stored procedures).
-    * **Scheduled queries** for recurring jobs.
-    * **Python/Notebooks** (BigQuery DataFrames).
-    * **Dataform** for full SQL workflow management.
-* **Publish**: write to curated **prod** tables or **views** with governance.
+  * **BigQuery SQL scripting** (procedural SQL: multi-step logic).
+  * **Scheduled queries** (recurring transforms).
+  * **UDFs** and **stored procedures** (reusable logic).
+  * **Remote functions** (call Python via Cloud Run from SQL).
+  * **Notebooks + BigQuery DataFrames** (Python exploration/transforms).
+  * **Dataform** (SQL workflow management: dependencies + tests + automation).
+* **Publish**: curated **prod** tables/views (with governance).
 
 ---
 
 ## 3) 🧾 BigQuery transformation toolkit (scripts, functions, scheduling)
 
-### 3.1 SQL Scripting (procedural)
+### 3.1 SQL Scripting (procedural SQL)
 
-* Run **multiple statements** with **shared state**.
-* Control flow: **`IF`**, **`WHILE`**, **`BEGIN…END`**, **transactions**.
-* **Variables**: declare & use system variables.
+BigQuery supports a **procedural language** so you can run **multiple SQL statements in sequence** with **shared state**.
+
+* Control flow: `IF`, `WHILE`
+* Multi-statement blocks: `BEGIN … END`
+* **Transactions** for integrity
+* **Variables** (including system variables)
+
+> 💡 **Exam Tip**
+> “Multiple SQL statements + shared state + IF/WHILE + transactions” → **BigQuery SQL scripting**.
+
+---
 
 ### 3.2 UDFs (user-defined functions)
 
-* **SQL UDFs** (recommended when possible) or **JavaScript UDFs**.
-* JS UDFs can use **external libraries**; community UDFs exist.
-* Scope: **temporary** or **persistent**.
+* **SQL UDFs** (recommended when possible) or **JavaScript UDFs**
+* Scope: **temporary** or **persistent**
+* JavaScript UDFs can use **external libraries**; community UDFs exist
+
+Use when: you need **reusable transformation logic** across many queries.
+
+---
 
 ### 3.3 Stored Procedures
 
-* Encapsulate logic, **parameterized**, support **transactions**.
-* **Apache Spark stored procedures in BigQuery**: author in **PySpark** editor or `CREATE PROCEDURE` with **Python/Java/Scala**; code inline or in **Cloud Storage**.
+* Encapsulate complex logic as a reusable unit
+* Benefits: **reusability**, **parameterisation**, **transaction handling**, maintainability
+* Called from apps or within SQL scripts
+
+**Spark stored procedures on BigQuery**
+
+* Can be defined in the BigQuery PySpark editor or via `CREATE PROCEDURE`
+* Languages: **Python / Java / Scala**
+* Code can be inline or stored in **Cloud Storage**
+
+---
 
 ### 3.4 Remote Functions (Cloud Run)
 
-* Define a **remote function** in BigQuery that calls your **Cloud Run** endpoint (e.g., Python).
-* Use it like a UDF in SQL (e.g., compute object lengths from signed GCS URLs).
+Remote functions let BigQuery call code running in **Cloud Run**.
+
+* Define the remote function in BigQuery (connection + endpoint)
+* Use it in SQL like a UDF
+* Useful for complex transformations in **Python**
+
+> 💡 **Exam Tip**
+> “Call Python logic from inside BigQuery SQL” → **Remote function + Cloud Run**.
+
+---
 
 ### 3.5 Notebooks & BigQuery DataFrames
 
-* Explore/transform with **Python** over data larger than RAM.
-* Integrates with viz libs; **schedule notebook** executions if needed.
+* Python exploration/transforms over datasets larger than RAM
+* Integrates with visualisation libraries
+* Can schedule notebook executions (useful for repeatable analysis pipelines)
+
+---
 
 ### 3.6 Saved & Scheduled Queries
 
-* **Save**, version, and **share** queries.
-* **Schedule** frequency/start/end & result destinations (table or GCS).
-* Great for simple pipelines; use **Dataform** when you need dependencies, tests, or post-steps.
+* Save queries, manage versions, share
+* Schedule frequency + start/end times + destination settings
+
+**Limit:** scheduled queries are great for simple jobs, but real pipelines often need post-steps:
+
+* run another SQL script
+* run data quality checks
+* apply security steps
 
 > 💡 **Exam Tip**
-> “Need to chain many SQL steps + tests + post-actions” → go **Dataform** (not just a scheduled query).
+> “Need multiple dependent steps + tests + automation” → **Dataform** (not only scheduled queries).
 
 ---
 
-## 4) 🧰 **Dataform (Serverless ELT for SQL Workflows)**
+## 4) 🧰 Dataform (SQL workflow orchestration for BigQuery ELT)
 
-**What it is:**
-A **serverless framework** embedded in the **BigQuery environment** that allows you to develop, test, document, and **orchestrate SQL-based ELT pipelines**.
+**What it is (clear + high-yield):**
+Dataform is a **managed (serverless) tool to organise and run SQL transformations in BigQuery**. You use it when your **data is in BigQuery** (or at least queryable from BigQuery), and you want more than “just running one query”.
 
----
+It helps you manage, in one place:
 
-### **Why use it**
+* **Transformations** (build tables/views from other tables)
+* **Assertions** (SQL-based data quality checks, e.g., “no nulls”, “no duplicates”)
+* **Automation** (run the workflow manually or on a schedule)
 
-* Centralises **definitions, dependencies, tests (assertions)**, documentation, and **automation** in one place.
-* Eliminates the need for **glue code** (for example, code connecting an API to a database) across multiple tools, thereby reducing human error.
+**How it works (plain):**
 
----
+1. You write your logic as **SQLX** (SQL + config) and optionally **JavaScript** for reusable patterns.
+2. Dataform builds a **dependency graph** (which tables must run first), validates/compiles your code, and shows errors early.
+3. When you run it (or schedule it), Dataform triggers **BigQuery jobs** to execute the compiled SQL in the correct order.
 
-### **How it runs with BigQuery**
-
-1. You write transformations in **SQLX** or **JavaScript**.
-2. Dataform performs **real-time compilation**, dependency validation, and error surfacing.
-3. The compiled SQL runs **directly in BigQuery**, either **on demand** or **on a schedule**.
-
-💡 **Clarification:**
-When we say that *execution happens inside BigQuery*, it means Dataform doesn’t have its own compute engine. Instead, it **sends your queries to BigQuery’s engine** for execution — just as if you had written and run the SQL manually in the BigQuery console.
-Dataform simply **manages the order, scheduling, and testing**, while **BigQuery does the actual processing**.
-In other words:
-
-> **Dataform organises and controls the logic; BigQuery executes it.**
+✅ **Key point:** Dataform does **not** replace BigQuery or Spark. It **doesn’t have its own compute**.
+It’s an **orchestrator for BigQuery SQL**: **Dataform plans/runs the workflow; BigQuery does the actual processing.**
 
 ---
 
-### **Repository and workspace structure**
+### 4.1 Repository & workspace structure
 
-* **Workspaces** come with default folders and files.
-* Key folders:
-
-  * `definitions/` → `.sqlx` files for **tables, views, incrementals, and declarations**.
-  * `includes/` → **JavaScript** helper functions.
-* Other files: `.gitignore`, `package.json`, `package-lock.json`, `workflow_settings.yaml`, `README.md`.
+* `definitions/` → `.sqlx` definitions (tables/views/incrementals/declarations)
+* `includes/` → JavaScript helpers
+* Common files: `.gitignore`, `package.json`, `package-lock.json`, `workflow_settings.yaml`, optional `README.md`
 
 ---
 
-### **SQLX file structure**
+### 4.2 SQLX file structure
 
 ```text
-config { ... }          # Metadata, materialisation, tests
-js { ... }              # Reusable JS helpers (optional)
-pre_operations { ... }  # SQL to run before main body (optional)
--- main SQL body here --
-post_operations { ... } # SQL to run after main body (optional)
+config { ... }          # metadata + materialisation + (optionally) tests
+js { ... }              # reusable JS helpers (optional)
+pre_operations { ... }  # SQL before main body (optional)
+-- main SQL body --
+post_operations { ... } # SQL after main body (optional)
 ```
 
-Use helper calls to replace repetitive logic, e.g. `$(mapping.region("country"))`.
+---
+
+### 4.3 Materialisation types (must know)
+
+* `declaration` → reference an existing BigQuery table
+* `table` → create/replace a table from a SELECT
+* `incremental` → create then update with new data
+* `view` → create/replace a view (optionally materialised)
 
 ---
 
-### **Materialisation types**
+### 4.4 Data quality + custom steps
 
-* `declaration` → References an existing BigQuery table.
-* `table` → Creates or replaces a table from a `SELECT`.
-* `incremental` → Creates, then **appends or updates** with new data.
-* `view` → Creates or replaces a view (optionally materialised).
+* **Assertions** (SQL/JS) → data quality tests
+* **Operations** → custom SQL before/after/during execution
 
----
-
-### **Quality and custom steps**
-
-* **Assertions** (SQL or JS) for enforcing **data quality**.
-* **Operations** to execute custom SQL **before, after, or during** pipeline runs.
+> 💡 **Exam Tip**
+> “Primary purpose of assertions?” → **data quality tests**.
 
 ---
 
-### **Dependencies**
+### 4.5 Dependencies (execution order)
 
-* **Implicit:** use `ref("node_name")` within SQL.
-* **Explicit:** define in `config { dependencies: [...] }`.
-* **resolve():** reference without creating a dependency.
+* **Implicit**: `${ref("node")}` creates a dependency automatically
+* **Explicit**: `config { dependencies: [...] }`
+* `resolve()` references without creating a dependency
 
----
-
-### **Orchestration and graph**
-
-* Visualised as a **DAG** — e.g.
-  `customer_source` → `customer_intermediate` → `customer_rowConsistency` → branches to both `customer_ml_training` (operation) **and** `customer_prod_view`.
-* **Triggers:**
-
-  * **Internal:** run manually in the UI or schedule within Dataform.
-  * **External:** use **Cloud Scheduler** or **Cloud Composer**.
-* Execution always takes place **inside BigQuery** (no separate runtime).
+Workflows are best visualised as a **DAG** (graph of dependencies).
 
 ---
 
-> 💡 **Exam Tip:**
-> If the question mentions *incremental tables, assertions, and ordered dependencies with retries*, the answer is **Dataform**.
+### 4.6 Triggers / scheduling
+
+* **Internal triggers**: manual run in Dataform UI or Dataform schedules
+* **External triggers**: **Cloud Scheduler** or **Cloud Composer**
+
+Execution still happens **inside BigQuery**.
 
 ---
 
@@ -178,15 +202,16 @@ Use helper calls to replace repetitive logic, e.g. `$(mapping.region("country"))
 
 ### Task 1 — Create repository
 
-* BigQuery → **Dataform** → **CREATE REPOSITORY**
+* BigQuery → Dataform → **CREATE REPOSITORY**
 * **ID:** `quickstart-repository` · **Region:** `REGION`
 * Copy the **Dataform service account**.
 
 ### Task 2 — Create & init workspace
 
-* Open repo → **CREATE DEVELOPMENT WORKSPACE** → **ID:** `quickstart-workspace` → **INITIALIZE WORKSPACE**
+* Repo → **CREATE DEVELOPMENT WORKSPACE**
+* **ID:** `quickstart-workspace` → **INITIALIZE WORKSPACE**
 
-### Task 3 — Define a **view** (`definitions/quickstart-source.sqlx`)
+### Task 3 — Define a view (`definitions/quickstart-source.sqlx`)
 
 ```sql
 config { type: "view" }
@@ -197,7 +222,7 @@ UNION ALL SELECT "pears", 1
 UNION ALL SELECT "bananas", 0
 ```
 
-### Task 4 — Define a **table** (`definitions/quickstart-table.sqlx`)
+### Task 4 — Define a table (`definitions/quickstart-table.sqlx`)
 
 ```sql
 config { type: "table" }
@@ -209,38 +234,45 @@ GROUP BY 1
 
 ### Task 5 — Grant IAM to Dataform SA
 
-* **BigQuery Job User**, **BigQuery Data Editor**, **BigQuery Data Viewer**.
+* **BigQuery Job User**
+* **BigQuery Data Editor**
+* **BigQuery Data Viewer**
 
 ### Task 6 — Execute workflow
 
-* Open workspace → **START EXECUTION** → **Execute actions → START EXECUTION**.
-* Dataform writes results into dataset **`dataform`**.
-* Check **EXECUTIONS** for logs/status.
+* Workspace → **START EXECUTION** → Execute actions → **START EXECUTION**
+* Outputs go to dataset **`dataform`**
+* Check **Executions** for logs/status
 
 ---
 
 ## 6) 🧠 Decision cheats (tool picker)
 
-* **Few steps / simple recurrence** → **Saved + Scheduled Query**.
-* **Complex SQL workflow** (deps, tests, post-ops, incremental) → **Dataform**.
-* **Custom Python logic** inside SQL → **Remote Function (Cloud Run)** or **JS/SQL UDF**.
-* **Reusable parameterized logic** with transactions → **Stored Procedure** (SQL or Spark).
-* **Exploration + Python transforms at scale** → **Notebooks + BigQuery DataFrames**.
+* **Few steps / simple recurrence** → **Saved + Scheduled Query**
+* **Complex SQL workflow** (dependencies + tests + operations + incrementals) → **Dataform**
+* **Reusable transformation logic** → **UDF**
+* **Reusable multi-statement routine with transactions** → **Stored Procedure**
+* **Need Python logic callable from SQL** → **Remote function (Cloud Run)**
+* **Python exploration / large-scale transformations** → **Notebooks + BigQuery DataFrames**
 
 ---
 
 ## 7) ✅ Micro-Checklist for the exam
 
-* Know **ELT**: load to **BQ staging**, transform **in BQ**, publish to **prod**.
-* **BigQuery scripting**: multi-statement, variables, IF/WHILE, transactions.
-* **UDFs**: prefer **SQL**; **JS** for libs/exotic logic.
-* **Stored procedures**: SQL & **Spark** (Py/Java/Scala; inline or GCS).
-* **Remote functions** (Cloud Run) callable from SQL.
-* **Scheduled queries**: automate cadence & destinations.
-* **Dataform**: SQLX structure, materializations (table/incremental/view/declaration), **assertions**, **operations**, **dependencies (ref/dependencies/resolve)**, UI & external triggers, runs **in BigQuery**.
+* ELT = load to **BQ staging**, transform **in BigQuery**, publish to **prod**
+* BigQuery scripting: multi-statement + shared state + IF/WHILE + transactions + variables
+* UDFs: SQL preferred; JS for external libs; temp vs persistent
+* Stored procedures: reusable + parameterised + transaction handling; Spark procedures exist (Py/Java/Scala; inline or GCS)
+* Remote functions: BigQuery calls Cloud Run from SQL
+* Scheduled queries: automate cadence + destination
+* Dataform: SQLX structure, materialisations, assertions, operations, dependencies (`ref` / `dependencies` / `resolve`), internal/external triggers; runs in BigQuery
 
 ---
 
 ### 👩‍🏫 Teacher’s nudge
 
-If you can explain **why ELT loads to BigQuery first**, list **all transform options in BigQuery**, and show how **Dataform** turns SQL into a dependable pipeline with **tests & dependencies**, you’ll be in great shape for the exam.
+If you can (1) define ELT precisely, (2) name BigQuery’s main transformation mechanisms, and (3) explain why Dataform is used for **workflow complexity + data quality + automation**, you’ll cover most exam questions in this module.
+
+---
+
+If you want, I can also produce a **short “exam-only” version** of this README (1 page) while keeping the same wording and decision rules.

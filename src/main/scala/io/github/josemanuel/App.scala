@@ -186,4 +186,9 @@ object App {
     println(s"rotated words: ${rotated.mkString(", ")}")
   }
 
+  // Explain how github copilot works
+  // Github Copilot is an AI-powered code completion tool developed by GitHub in collaboration with OpenAI. It uses machine learning models trained on a vast amount of publicly available code to provide context-aware code suggestions and completions as developers write code. By analyzing the code being written, Copilot can suggest entire lines or blocks of code, helping to speed up the coding process and improve productivity. It supports multiple programming languages and integrates seamlessly with popular code editors like Visual Studio Code.
+  // More info at https://copilot.github.com/
+
+
 }
