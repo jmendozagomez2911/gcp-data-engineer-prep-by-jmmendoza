@@ -1,10 +1,23 @@
-# 🤖📦 **README — Module 01: When to choose batch data pipelines**
+# 🤖📦 **README — Module 01: When to choose batch data pipelinee**
 
-**Goal:** Know *exactly* when a **batch data pipeline** is the right pattern, what its core components are, which GCP services map to each stage, and which design ideas the **Professional Data Engineer** exam will test.
+**Goal:** Know *exactly* when a **batch data pipeline** is the right pattern, what its **core stages/components** are, which **Google Cloud services** map to each stage, and the **exam logic** behind common “batch vs streaming” questions.
 
 **Read me like this:**
 
-1. What batch pipelines are → 2) When to choose batch vs streaming → 3) Components + GCP mapping → 4) Batch processing vs pipeline → 5) Core features (throughput, latency, cost) → 6) Cymbal challenges → 7) Ingestion patterns (Cloud Storage hub) → 8) Exam-style patterns + quiz logic → 9) Micro-checklist.
+1. What batch pipelines are → 2) When to choose batch → 3) Components/stages + GCP mapping → 4) Batch processing vs batch pipeline → 5) Core batch features → 6) Cymbal challenges → 7) Ingestion patterns (Cloud Storage hub + direct DB) → 8) Future-proofing → 9) Quiz logic → 10) Micro-checklist.
+
+---
+
+## 0) 🎯 What this course/module is training you to do
+
+As a data engineer, your job is to build **reliable pathways** from raw sources to insights. This course is focused on the **batch data pipeline**, the backbone for enterprise workloads like:
+
+* daily financial reconciliation
+* scheduled analytics and reporting
+* large historical dataset preparation
+* cost-efficient high-volume transformations
+
+The recurring skill: **diagnose the business problem first**, then choose the right architecture (batch vs streaming vs something else).
 
 ---
 
@@ -12,224 +25,195 @@
 
 **Definition (exam level):**
 
-> A **batch data pipeline** is a *sequence of processes* that **ingests → transforms → sinks** *large, finite datasets* (“batches”) at **scheduled intervals**, optimized for **throughput and efficiency**, not for low latency.
+> A **batch data pipeline** is an **automated system** that ingests → transforms → sinks **large, finite (bounded) datasets** (“batches”) at **scheduled intervals**, optimised for **throughput and efficiency**, not low latency.
 
-Contrast with streaming:
+**Batch vs streaming (core contrast):**
 
-* **Batch**: works on **bounded** data (e.g. “all transactions for 2025-01-01”), processed in one or more scheduled runs.
-* **Streaming**: works on **unbounded**, continuously arriving data (events in real time).
+* **Batch**: **bounded** data, processed in chunks (e.g., “all transactions for 2025-01-01”).
+* **Streaming**: **unbounded** continuous events (real-time dashboards, immediate alerts, fraud detection).
 
-> **Exam tip:** Words like *“end of day”, “daily after business hours”, “monthly report”, “five years of historical data”* → very strong batch signal.
-
----
-
-## 2) 📌 When is batch the right pattern? (Use cases)
-
-Typical **batch-friendly** scenarios:
-
-* **Scheduled reports & analytics on historical data**
-
-    * Daily/weekly/monthly KPIs, trend analysis, financial reports.
-* **Massive datasets that need heavy transformations**
-
-    * Cleaning, aggregation, joins, business logic over *all* the data.
-* **Data warehouse loading / ELT**
-
-    * Periodic loads from OLTP systems, third-party data, logs → **BigQuery**.
-* **Bulk data movement**
-
-    * Large volumes from on-prem → cloud or between systems.
-* **Backups / archival / DR**
-
-    * Large periodic snapshots of data for recovery/compliance.
-
-> **Exam pattern:**
-> “Process **all of the day’s transactions at once** after close of business; **real-time is not required**; must be **throughput-optimised and cost-effective**” → **Batch processing**.
+> 💡 **Exam tip**
+> Phrases like **“end of day”**, **“nightly after business hours”**, **“monthly close”**, **“process 5 years of history”**, **“not real-time required”** → **batch**.
 
 ---
 
-## 3) 🏗️ Components of a batch pipeline + GCP mapping
+## 2) 📌 When is batch the right pattern? (use cases)
 
-Keep this pipeline shape in your head and map each part to GCP services.
+Batch pipelines are ideal when you need **throughput + efficiency** over large volumes and can tolerate latency.
+
+Typical batch-friendly scenarios:
+
+1. **Scheduled reports & analytics on historical data**
+   Daily/weekly/monthly KPIs, financial reports, trend analysis.
+
+2. **Massive datasets requiring heavy transforms**
+   Cleaning, validation, aggregation, joins, business rules over the whole dataset.
+
+3. **Loading/updating data warehouses**
+   Periodic loads from OLTP systems, third parties, logs → **BigQuery**.
+
+4. **Bulk data movement**
+   Large volumes between systems or **on-prem → cloud** migrations.
+
+5. **Backups / archival / disaster recovery**
+   Regular snapshots and long-term retention.
+
+> 💡 **Exam pattern**
+> “Run daily after business hours, process all of the day’s transactions at once, real-time not required, throughput-optimised, cost-effective” → **Batch processing**.
+
+---
+
+## 3) 🏗️ Batch pipeline components/stages + Google Cloud mapping
+
+A batch pipeline usually moves through these stages (plus orchestration/monitoring around it).
 
 ### 3.1 Data sources
 
-* Operational DBs, CSV, JSON, log files, third-party APIs, other clouds.
-* Often heterogeneous (schemas, formats, frequencies).
+Raw data origins: CSV, JSON, DB tables, logs, SaaS exports, other clouds. Often heterogeneous (formats/schemas).
 
-### 3.2 Data ingestion (→ landing zone)
+### 3.2 Data ingestion (→ landing/staging)
 
-* **What it is:** Move raw data from sources to a **central staging area**.
-* **On GCP:**
+**What it is:** Collect raw data and transfer it to a central staging area (“landing zone”).
 
-    * **Cloud Storage** bucket as **landing / staging** zone.
-    * In some cases: direct ingestion into **BigQuery** or from other clouds.
+**On Google Cloud:**
 
-> **Architectural best practice:**
-> **Land raw data in durable storage before transforming**. This **decouples ingestion from processing** and lets you re-run failed jobs from the raw data.
+* **Cloud Storage** bucket as the standard **landing/staging** zone for raw batch files.
+* **Important nuance:** If the source is an accessible database, you may ingest **directly into the pipeline** without creating files in Cloud Storage.
 
-➡ **Quiz #1 principle:**
-Correct answer: *“Because it decouples ingestion from processing, allowing the transformation job to be re-run from the raw source data if it fails.”*
+**Why landing raw data matters (resilience rule):**
 
----
+> Landing raw data in durable storage **decouples ingestion from processing**, so if transformation fails, you can **re-run** from the raw batch without re-pulling from the original system.
+
+✅ This is a classic exam idea.
 
 ### 3.3 Data transformation
 
-* Clean, validate, enrich, join, aggregate, map to canonical schemas, apply business rules.
-* **On GCP:**
+Clean, validate, standardise, enrich, join, aggregate, map to canonical schemas.
 
-    * **Dataflow (Apache Beam)** — unified model for **batch & streaming**.
-    * **Dataproc Serverless for Apache Spark** — run Spark code without managing clusters.
+**On Google Cloud (common choices):**
 
-> **Exam tip:** Team with existing **Spark** jobs and want serverless → **Dataproc Serverless (for Spark)**, **minimal code changes**.
-> (Quiz #10 principle.)
-
----
+* **Dataflow (Apache Beam)**: strong for **batch** and also **streaming** (unified model).
+* **Dataproc Serverless for Apache Spark**: run Spark workloads without managing clusters.
 
 ### 3.4 Data sink (final storage)
 
-* Where transformed data ends up for analytics / downstream use.
+Where clean/structured data lands for analytics:
 
-Common GCP sinks:
+* **BigQuery** (data warehouse, fast SQL over huge datasets)
+* **Cloud Storage** data lake (often with table formats like **Apache Iceberg**)
+* Other analytical stores depending on needs
 
-* **BigQuery** → analytical DWH for interactive SQL over massive datasets.
-* **Cloud Storage** data lake (often with table formats like **Iceberg**, etc.).
-* Other analytical stores depending on use case.
+### 3.5 Downstream uses (where value is realised)
 
----
+Not a pipeline stage, but exam-relevant:
 
-### 3.5 Downstream uses (not “pipeline”, but very examinable)
+* financial reporting
+* dashboards/BI
+* machine learning training and scoring on historical data
 
-Examples (Cymbal Superstore):
+### 3.6 Orchestrate & monitor (wraps the whole pipeline)
 
-* **Financial reporting** in BigQuery.
-* **BI dashboards** on historical data.
-* **ML models** using years of cleaned transaction data to forecast sales.
+**Orchestration:** schedule tasks, manage dependencies/order, retries.
 
----
+* **Cloud Composer (Airflow)**, **Workflows**, **Cloud Scheduler**
 
-### 3.6 Orchestration & monitoring (wraps the whole pipeline)
+**Monitoring/observability:** logs, metrics, alerts, performance insights.
 
-* **Orchestration:** order, dependencies, schedules, retries.
+* **Cloud Logging**, **Cloud Monitoring**
 
-    * On GCP: **Cloud Composer** (Airflow), **Workflows**, **Cloud Scheduler**.
-* **Monitoring & observability:** health, errors, performance, SLAs.
-
-    * On GCP: **Cloud Logging**, **Cloud Monitoring**, alerts, dashboards.
-
-> **Quiz #8 principle:**
-> “Failure discovered hours later, hard to find errors” → challenge is **Reliability & Observability**, solved by **centralized logging and metrics-based monitoring**.
+> 💡 Exam tip
+> If the scenario includes “failed overnight but noticed hours later” → it’s an **observability** issue: you need **centralised logging + monitoring + alerting**.
 
 ---
 
-## 4) 🏪 Cymbal Superstore: concrete mapping to GCP
+## 4) 🏪 Cymbal Superstore story (template you should reuse mentally)
 
-Learn this story as a template:
+Cymbal processes **millions of daily billing transactions** from many sources → needs reliable reporting.
 
-1. **Sources:** CSV + JSON billing data from many systems.
-2. **Ingestion:** Automated landing into **Cloud Storage** (central staging).
-3. **Transformation:**
+**Pipeline flow:**
 
-    * Use **Dataflow for Apache Beam** *or* **Serverless for Apache Spark**
-    * Read raw data from Cloud Storage → clean, validate, standardize.
-4. **Sink:** Write cleansed, structured data to **BigQuery** (enterprise warehouse).
-5. **Downstream:**
+1. **Sources:** CSV/JSON transaction/billing data from multiple systems
+2. **Ingestion:** automated landing into **Cloud Storage** (central staging)
+3. **Transformation:** **Dataflow** or **Dataproc Serverless (Spark)** reads raw data → cleans/validates/standardises
+4. **Sink:** **BigQuery** for analytics and reconciliation
+5. **Downstream:** reporting, dashboards, ML
+6. **Orchestration + monitoring:** **Cloud Composer** schedules and coordinates; **Logging/Monitoring** keeps it reliable
 
-    * Financial reports, dashboards, ML on historical sales.
-6. **Orchestration & monitoring:**
-
-    * **Cloud Composer** schedules jobs.
-    * Logging + monitoring to ensure reliability and data quality.
-
-> **Exam tip:** If the case mentions **“millions of daily transactions”, “financial reconciliation”**, and **no real-time need**, plus GCP services like **Cloud Storage + Dataflow/Dataproc + BigQuery**, they are describing **exactly this pattern**.
+> 💡 Exam tip
+> “High-volume daily transactions + financial reconciliation + not real-time” is a batch pipeline archetype.
 
 ---
 
-## 5) 🧬 Batch *processing* vs batch *data pipelines*
+## 5) 🧬 Batch *processing* vs batch *data pipeline* (don’t mix them)
 
-You must be able to distinguish the terms:
+These terms are related but not identical:
 
-| Term                      | Focus                                                                                                                                 |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| **Batch data processing** | The **method**: collect data in a **batch** and process it in a scheduled run.                                                        |
-| **Batch data pipeline**   | The **end-to-end system** that **implements** batch processing (sources → ingestion → transform → sink → orchestration & monitoring). |
+| Term                      | Meaning                                                                                                                                   |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| **Batch data processing** | The **method**: collect data for a period, then process the full batch in a scheduled run.                                                |
+| **Batch data pipeline**   | The **end-to-end automated system** that implements batch processing (sources → ingestion → transform → sink + orchestration/monitoring). |
 
-> In casual speech they’re mixed, but exam questions may talk about **“batch processing features”** vs **“pipeline architecture”**.
+Exam questions may test the *features of batch processing* vs the *architecture of a pipeline*.
 
 ---
 
-## 6) ⚙️ Core features of batch data processing (what exam loves)
+## 6) ⚙️ Core features of batch data processing (what the exam loves)
 
-Batch processing normally implies these **four properties**:
+Batch processing is designed around four properties:
 
 1. **Scheduled & automated**
+   Runs on a schedule with minimal manual work.
 
-    * Jobs run **on a schedule** (nightly, hourly, monthly) with **no manual intervention**.
 2. **High throughput**
+   Efficiently processes huge volumes (terabytes, years of history).
 
-    * Optimised for **processing huge volumes** efficiently (terabytes, years of history).
 3. **Latency-tolerant**
+   Results can arrive later (e.g., next morning) because immediacy isn’t required.
 
-    * Accepts **higher latency** (e.g. results ready next morning) in exchange for efficiency.
-    * Ideal for **bounded historical workloads** (e.g. 5 years of sales).
 4. **Resource optimisation (burst usage)**
+   Compute scales up during execution and scales down afterward → pay only when running.
 
-    * Compute can **scale up during the job** then **scale down or shut off**.
-    * Avoids paying for always-on infrastructure.
-
-> **Quiz #2 principle:**
-> Historical 5-year dataset for model training → key idea is: **batch is designed for very large, bounded datasets**.
-
-> **Quiz #4 principle:**
-> “Complex validations across **entire day’s data at once**” → relies on **operating on a complete, bounded dataset**.
-
-> **Quiz #6 principle:**
-> CFO wants to cut costs; job runs 4h/day → serverless batch **only charges during execution** (resource optimisation).
+> 💡 Exam mapping
+> A design “process terabytes nightly, cost-effective, heavy compute only during the run” emphasizes:
+> ✅ **High throughput** + ✅ **Resource optimisation**
 
 ---
 
-## 7) 🛰️ Serverless & cost: why the business cares
+## 7) 🧩 Common batch pipeline challenges (Cymbal’s pain points)
 
-When the exam says **“fully serverless”**, think like this:
+Know these four buckets; most scenarios map to one of them.
 
-* You **don’t manage infrastructure** (no cluster sizing, patching, OS updates).
-* Platform handles **provisioning, scaling, tear-down**.
-* You pay **only while jobs run**, not 24/7.
+1. **Data volume & scalability**
+   Volume spikes overwhelm fixed resources. Pipelines must auto-scale.
 
-> **Quiz #5 principle:**
-> Main business value: **reduces total cost of ownership by shifting operational overhead** to the cloud provider.
+2. **Data quality & consistency**
+   Many sources + formats → errors/inconsistency; cleaning and validation are critical for correct reporting.
 
-> **Quiz #6 principle (again):**
-> On-prem cluster running 24/7 vs serverless that runs 4h/day → **direct cost saving** by paying only for active job time.
+3. **Complexity & maintainability**
+   More sources and logic → brittle pipelines, hard debugging.
 
-And for teams with existing Spark:
-
-> **Quiz #10 principle:**
-> Most logical move is **“adopt managed/serverless that runs existing Spark code with minimal changes”** → on GCP, think **Dataproc Serverless for Spark**.
+4. **Reliability & observability**
+   Failures delay reports; errors are hard to diagnose → needs retries, alerts, logs/metrics.
 
 ---
 
-## 8) 📥 Initial ingestion patterns (Cloud Storage as the hub)
+## 8) 📥 Initial ingestion patterns (Cloud Storage hub + programmatic upload + multi-cloud)
 
-### 8.1 Cloud Storage = central staging layer
+### 8.1 Cloud Storage as the raw ingestion hub
 
-Key architectural idea:
+Cloud Storage is the “central warehouse” for raw files:
 
-* Land **all raw batch files (CSVs, JSON, logs, etc.) into Cloud Storage**.
-* Treat this as your **single source of truth** for raw data.
+* scalable and durable
+* supports reprocessing (re-run transforms)
+* enables multiple processing engines (Dataflow/Spark/BQ loads)
 
-**Why it matters:**
+**Key exam reason it builds resilience:**
 
-* **Decouples** the data source systems from the processing engine.
-* Allows **re-runs** if processing fails (no need to re-pull from source).
-* Enables multiple downstream consumers (Dataflow, Dataproc, BigQuery, ML).
+> It **decouples ingestion from processing**, allowing re-runs from raw data if downstream jobs fail.
 
-> **Quiz #1 principle (repeated):**
-> The primary reason this adds resilience is **decoupling ingestion from processing**.
+### 8.2 Programmatic ingestion (Python example you should recognise)
 
----
-
-### 8.2 Programmatic ingestion (Python example – what you must “recognise”)
+You don’t need to memorise it, just understand the pattern:
 
 ```python
 from google.cloud import storage
@@ -239,118 +223,64 @@ def upload_blob(bucket_name, source_file_name, destination_blob_name):
     bucket = storage_client.bucket(bucket_name)
     blob = bucket.blob(destination_blob_name)
     blob.upload_from_filename(source_file_name)
-    print(f"File {source_file_name} uploaded to {destination_blob_name} in bucket {bucket_name}.")
+    print(f"Uploaded {source_file_name} to gs://{bucket_name}/{destination_blob_name}")
 ```
 
-You don’t need to memorise line-by-line code, but you must understand:
+Once the batch lands in GCS, **Dataflow/Dataproc Serverless** can pick it up for transformations.
 
-* **Pattern:** local/system file → **Cloud Storage bucket**.
-* Afterwards, **Dataflow / Dataproc Serverless** can read from that bucket.
+### 8.3 Direct DB ingestion (important nuance)
 
-> **Concept tested:** “Data is **programmatically landed** in a bucket, then batch jobs pick it up” → standard GCP pipeline pattern.
+If the data is in an accessible database, you will often **pull it directly** into the pipeline (not always via files).
 
----
+### 8.4 Multi-cloud note (high-level)
 
-### 8.3 Multi-cloud support (high level)
-
-* GCP can **ingest or process data residing in other clouds** without always copying everything first.
-* For the exam, the key idea is: GCP can operate in **multi-cloud** scenarios and still use **Cloud Storage + Dataflow/Dataproc/BigQuery** as processing platform.
+Google Cloud supports working in multi-cloud contexts; the key takeaway is you can still standardise ingestion/processing patterns without always making expensive duplicate copies everywhere.
 
 ---
 
-## 9) 🧩 Typical challenges of batch pipelines (Cymbal’s problems)
+## 9) 🧠 Future-proofing: “batch now, streaming later”
 
-Know these four buckets; exam scenarios are written around them.
-
-1. **Data Volume & Scalability**
-
-    * Rapid data growth overwhelms legacy systems.
-    * Need **auto-scaling** pipelines that cope with spikes (e.g. triple volume during sales events).
-    * **Quiz #9 principle:** daily volume triples and fixed pipeline fails → challenge is **Data Volume & Scalability**.
-
-2. **Data Quality & Consistency**
-
-    * Many sources, formats, and schema variations.
-    * Need cleaning, validation, standardisation to avoid **incorrect financial reports**.
-
-3. **Complexity & Maintainability**
-
-    * Adding more sources and business logic → messy scripts, hard to debug and evolve.
-    * Need **well-designed pipelines** with clear stages & orchestration.
-
-4. **Reliability & Observability**
-
-    * Job failures delay reports; errors hard to find.
-    * Need **retries, alerts, centralized logging, metrics**.
-    * **Quiz #8 principle:** reliability/observability problem → solved by **logging + monitoring**, not by “more transformation frameworks”.
-
-> **Quiz #7 principle:**
-> When nightly reconciliation fails across multiple sources, the robust long-term solution is:
-> **“Design an automated, end-to-end batch data pipeline that orchestrates collection, cleansing, validation on a nightly schedule.”**
-
----
-
-## 10) 🧠 Future-proofing: batch now, streaming later
-
-A classic exam pattern:
-
-* Requirement **today**: batch.
-* Possible requirement **tomorrow**: streaming (near real-time).
+A classic exam pattern: batch requirements today, possible real-time tomorrow.
 
 Best design choice:
 
-> **Select a programming model that works for both batch and streaming so you can reuse business logic.**
+> Pick a **unified programming model** that supports both batch and streaming so you can reuse logic.
 
-On GCP this screams **Apache Beam (Dataflow)**.
-
-➡ **Quiz #3 principle:** correct option is *“Select a programming model that is unified for both batch and streaming.”*
+On GCP that typically points to **Apache Beam (Dataflow)**.
 
 ---
 
-## 11) 📝 Exam-style logic behind the module quiz (quick mapping)
+## 10) 📝 Quiz logic (fast mapping to the “why”)
 
-You don’t need the letters, just the *idea*:
+These are the underlying principles the quiz is testing:
 
-1. **Landing raw → resilient**
-   ⇒ Decouple ingestion from processing; re-run from raw.
-2. **5 years historical data**
-   ⇒ Batch is ideal for **large, bounded** datasets.
-3. **Future streaming**
-   ⇒ Pick **unified batch+streaming model** (e.g. Beam).
-4. **Full-day financial validation**
-   ⇒ Requires **complete, bounded dataset**.
-5. **Fully serverless business benefit**
-   ⇒ Lower TCO by shifting **ops overhead** to cloud provider.
-6. **CFO & 4h batch on 24/7 system**
-   ⇒ **Resource optimisation**: pay only when job runs.
-7. **Nightly reconciliation failures**
-   ⇒ Build **automated end-to-end batch pipeline**, not ad-hoc scripts.
-8. **Failure found late, hard to debug**
-   ⇒ **Reliability & Observability** → logging + monitoring tools.
-9. **Volume triples, fixed resources fail**
-   ⇒ **Data Volume & Scalability** challenge.
-10. **Existing Spark team wants serverless**
-    ⇒ Use **managed/serverless service that runs Spark with minimal changes** (Dataproc Serverless).
+1. **Comprehensive daily validation** works because batch operates on a **complete bounded dataset**.
+2. Robust long-term fix for inconsistent nightly reconciliation = **automated end-to-end batch pipeline** (not ad-hoc scripts).
+3. Volume triples and pipeline fails = **Data volume & scalability** challenge.
+4. “Fully serverless” main benefit = lower **total cost of ownership** (provider handles ops: scaling, patching, infra).
+5. Existing Spark team to serverless = adopt **managed/serverless Spark** with minimal changes (**Dataproc Serverless**).
+6. Landing raw in durable storage improves resilience by **decoupling ingestion from processing** → re-run transforms.
+7. Future streaming possibility = choose **unified batch+stream model** (**Beam/Dataflow**).
+8. CFO cost reduction with 4h/day workload = pay only while running (**resource optimisation**).
+9. Failure discovered hours later + hard debugging = **reliability & observability** → logging + monitoring tools.
+10. 5-year historical dataset prep = batch is best for very large **bounded** datasets.
 
 ---
 
-## ✅ Micro-Checklist (Module 1 cram)
+## ✅ Micro-Checklist (Module 01 cram)
 
-Before moving on, make sure you can:
+You’re done with this module when you can:
 
-* Define a **batch data pipeline** and distinguish it from **streaming**.
-* List **key use cases** where batch is clearly better (historical reports, huge bounded datasets, nightly reconciliation, model training).
-* Draw the **pipeline stages** and map them to **GCP services**:
+* Define **batch pipeline** vs **streaming** and identify **bounded vs unbounded**.
+* List batch use cases (nightly reconciliation, historical analytics, large transforms, DW loading).
+* Draw the pipeline stages and map to GCP:
 
-    * Sources → **Cloud Storage** (landing) → **Dataflow / Dataproc Serverless** (transform) → **BigQuery / GCS** (sink) → Composer / Logging & Monitoring.
-* Explain the **4 core features** of batch processing:
-
-    * Scheduled & automated, high throughput, latency-tolerant, resource-optimised.
-* Argue why **landing raw data in Cloud Storage** makes the pipeline more **resilient and re-runnable**.
-* Recognise **Cymbal’s four challenge categories**: volume, quality, complexity, reliability/observability.
-* Explain the value of **serverless** for cost (no 24/7 clusters; pay-per-use).
-* Justify choosing a **unified programming model** (Beam) to future-proof for streaming.
+    * **Cloud Storage** (landing) → **Dataflow / Dataproc Serverless** (transform) → **BigQuery / GCS** (sink)
+    * Orchestrate with **Composer/Workflows/Scheduler**
+    * Observe with **Cloud Logging/Monitoring**
+* Explain the four batch features: **scheduled**, **high throughput**, **latency tolerant**, **resource optimisation**.
+* Explain why landing raw data increases resilience (decoupling + re-run capability).
+* Recognise the four challenge categories: **volume**, **quality**, **complexity**, **reliability/observability**.
+* Future-proof choice: **Beam/Dataflow** for shared batch+stream logic.
 
 ---
-
-Si quieres, en el siguiente mensaje me puedes pasar **el siguiente módulo** y sigo construyendo READMEs así, uno por módulo, para que tengas un “libro de notas” listo para repasar antes del examen.
