@@ -88,20 +88,28 @@ The module calls the interoperability layer the **Portability API**:
 **Exam nuance to remember:** portability is not just “marketing about no lock-in” — it’s **a concrete interoperability mechanism** (protocols + representation) that makes multi-language execution possible.
 
 ---
+## 4) 🧱 Container environments (why they matter for portability)
 
-## 4) 🧱 Container environments (why they matter in portability)
+Beam portability works only if your code runs in a **predictable, identical runtime** on every worker machine.
+That’s why it relies heavily on **containerisation**.
 
-Portability depends heavily on **containerisation** because you need a consistent runtime on worker nodes.
+### What “container environment” means
+
+* **Container image** = the *blueprint* of the runtime (OS + libraries + language runtime + your dependencies).
+* **Containers on workers** = the *running instances* started from that image on each worker node.
+
+So Beam says: “Run this step in *this environment*”, and the runner ensures workers start the right container.
 
 ### ✅ What containerisation gives you
 
-* **Hermetic worker environment** (isolated from other runtimes)
-* You can include **arbitrary dependencies**
-* **Ahead-of-time installation** (reduce runtime surprises)
-* Each user operation can be associated with an **environment** in which it executes
+* **Hermetic worker environment**: isolated and reproducible (no “works on my machine”).
+* **Any dependencies you need**: Python packages, Java libs, system libraries, etc.
+* **Pre-installed runtime**: dependencies are built into the image, so workers don’t install things at runtime.
+* **Per-step environment choice**: each user operation/transform can be linked to an environment (image) that executes it.
 
-**Mental model:** Portability is “pipeline representation + standard protocols”.
-Containers are “how you guarantee the runtime behaves the same”.
+**Mental model:**
+Portability = **(portable pipeline graph + standard runner protocols)**
+Containers = **(portable runtime: same code + same dependencies everywhere)**
 
 ---
 
