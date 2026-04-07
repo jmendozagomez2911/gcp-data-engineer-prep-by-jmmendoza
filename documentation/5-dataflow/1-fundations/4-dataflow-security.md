@@ -50,7 +50,6 @@ Setting a Dataflow **regional endpoint** controls where the **control-plane endp
 * If you also need a specific worker placement:
 
     * `--worker_zone` (pin workers to a zone inside that region)
-    * `--worker_region` (run workers in a different region, while control plane uses a supported endpoint region) ([Google Cloud Documentation][2])
 
 ### Exam triggers
 
